@@ -1,14 +1,12 @@
-import * as parquet from '../dep/thrift/gen-nodejs/parquet';
-import { Encoding, PageType } from './const';
-import { decompress } from './decompress';
-import { Chunk, parseFileMetadata, type FileMetadata } from './parts/file-metadata';
-import type { SchemaLeafNode } from './parts/schema';
-import { typedArrayView } from './view';
-import { DataResult, DataType } from '../types';
-import { processTypeDataPage, processTypeDataPageV2, readPage } from './parts/page';
-import { processDataPlain } from './parts/process';
-
-const td = new TextDecoder('utf-8');
+import type * as parquet from '../dep/thrift/gen-nodejs/parquet.js';
+import { Encoding, PageType } from './const.js';
+import { decompress } from './decompress.js';
+import { Chunk, parseFileMetadata, type FileMetadata } from './parts/file-metadata.js';
+import type { SchemaLeafNode } from './parts/schema.js';
+import { typedArrayView } from './view.js';
+import { DataResult, DataType, IdDataResult } from '../types.js';
+import { countForPageHeader, processTypeDataPage, processTypeDataPageV2, readPage } from './parts/page.js';
+import { processDataPlain } from './parts/process.js';
 
 export type Reader = (start: number, end?: number) => Promise<Uint8Array>;
 
@@ -29,6 +27,8 @@ export class ParquetReader {
   }
 
   async init() {
+    const td = new TextDecoder('utf-8');
+
     const headerPromise = this.r(0, 4);
     const footerPromise = this.r(-8);
 
@@ -59,11 +59,13 @@ export class ParquetReader {
 
     // This reads the dictionary/pages in parallel. The only efficiency here will be if the data
     // is gzip-encoded, which can be done in parallel by Node or the browser.
-    let dictPromise = Promise.resolve<undefined | DataResult>(undefined);
-    const pagePromises: Promise<DataResult>[] = [];
+    let dictPromise = Promise.resolve<undefined | IdDataResult>(undefined);
+    const pagePromises: Promise<IdDataResult>[] = [];
 
     if (chunk.hasDictionary) {
       const out = readPage(arr);
+      const count = countForPageHeader(out.header);
+
       const data = arr.subarray(out.begin, out.end);
       offset = out.end;
 
@@ -81,32 +83,37 @@ export class ParquetReader {
         const count = dictionaryHeader.num_values as number;
 
         const raw = await decompress(data, chunk.codec);
-        return processDataPlain(raw, count, schema.type);
+        const dr = processDataPlain(raw, count, schema.type);
+        return {
+          id: out.begin,
+          ...dr,
+        };
       })();
     }
 
     while (offset < arr.length) {
       const out = readPage(arr, offset);
+      const count = countForPageHeader(out.header);
+
       const data = arr.subarray(out.begin, out.end);
       offset = out.end;
 
       // Read pages in async in case there's any efficiencies to be found.
-      pagePromises.push(
-        (async () => {
-          const raw = await decompress(data, chunk.codec);
+      const p = (async () => {
+        const raw = await decompress(data, chunk.codec);
 
-          switch (out.type) {
-            case PageType.DATA_PAGE:
-              return processTypeDataPage(out.header, schema, raw);
+        switch (out.type) {
+          case PageType.DATA_PAGE:
+            return processTypeDataPage(out.header, schema, raw);
 
-            case PageType.DATA_PAGE_V2:
-              return processTypeDataPageV2(out.header, schema, raw);
+          case PageType.DATA_PAGE_V2:
+            return processTypeDataPageV2(out.header, schema, raw);
 
-            default:
-              throw new Error(`Unsupported page type: ${out.header.type}`);
-          }
-        })(),
-      );
+          default:
+            throw new Error(`Unsupported page type: ${out.header.type}`);
+        }
+      })();
+      pagePromises.push(p.then((dr) => ({ id: out.begin, ...dr })));
     }
 
     return {
@@ -144,18 +151,12 @@ export class ParquetReader {
       }
     };
 
-    let offset = 0;
-    const parts: ColumnResultPart<any>[] = result.pages.map((p) => {
-      const start = offset;
-      offset += p.arr.length;
-      const end = offset;
-
+    const parts = result.pages.map((p) => {
       // Actual data. Return simple mode.
       if (!('lookup' in p)) {
         updateType(p.type);
 
         return {
-          start,
           isDictLookup: false,
           data: p,
         };
@@ -165,12 +166,11 @@ export class ParquetReader {
       if (!(p.type === DataType.INT8 || p.type === DataType.INT16 || p.type === DataType.INT32)) {
         throw new Error(`Got invalid dict lookup type: ${(p as DataResult).type}`);
       } else if (!result.dict) {
-        throw new Error(`Dictionary lookup without chunk.dict, nothing to index`);
+        throw new Error(`Dictionary lookup without dict, can't index?`);
       }
       updateType(result.dict.type);
 
       return {
-        start,
         isDictLookup: true,
         data: p,
         dict: result.dict,

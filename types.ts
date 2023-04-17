@@ -8,7 +8,10 @@ export enum DataType {
   BYTE_ARRAY,
 }
 
-export type DataResultDictLookup = { lookup?: true } & (
+/**
+ * Data that may optionally be used to lookup other data in a dictionary.
+ */
+export type DataResultDictLookup = { lookup?: number } & (
   | {
       type: DataType.INT8;
       arr: Int8Array;
@@ -23,6 +26,9 @@ export type DataResultDictLookup = { lookup?: true } & (
     }
 );
 
+/**
+ * Any data that has been expanded for return from reading some encoded file.
+ */
 export type DataResult =
   | DataResultDictLookup
   | {
@@ -41,3 +47,8 @@ export type DataResult =
       type: DataType.BYTE_ARRAY;
       arr: Uint8Array;
     };
+
+/**
+ * An identified result: the ID is unique per-file (byte location of source data).
+ */
+export type IdDataResult = { id: number } & DataResult;

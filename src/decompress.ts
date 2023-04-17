@@ -1,5 +1,5 @@
-import { CompressionCodec } from './const';
-import { decompress as snappyDecompress } from './snappy/decompress';
+import { CompressionCodec } from './const.js';
+import { decompress as snappyDecompress } from './snappy/decompress.js';
 
 /**
  * Decompress a page of Parquet data encoded in one of {@link CompressionCodec}.

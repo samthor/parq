@@ -2,8 +2,8 @@
  * @fileoverview Better implementation of the TCompactProtocolReader from Thrift.
  */
 
-import { readVarint32, readVarint64 } from '../varint';
-import { ThriftType } from './types';
+import { readVarint32, readVarint53 } from '../varint.js';
+import { ThriftType } from './types.js';
 
 export enum CompactProtocolType {
   CT_STOP = 0x00,
@@ -32,7 +32,7 @@ export class TCompactProtocolReader {
   private pendingBool: boolean | undefined;
 
   private readVarint32: () => number;
-  private readVarint64: () => { hi: number; lo: number };
+  private readVarint53: () => number;
 
   constructor(buf: Uint8Array, at = 0) {
     this.buf = buf;
@@ -40,7 +40,7 @@ export class TCompactProtocolReader {
 
     const readByteBind = this.readByte.bind(this);
     this.readVarint32 = readVarint32.bind(null, readByteBind);
-    this.readVarint64 = readVarint64.bind(null, readByteBind);
+    this.readVarint53 = readVarint53.bind(null, readByteBind);
   }
 
   skip(type: ThriftType) {
@@ -217,11 +217,7 @@ export class TCompactProtocolReader {
   }
 
   readI64(): number {
-    const raw = this.readVarint64();
-    if (raw.hi) {
-      throw new Error(`TODO: can't deal with int64, too big lo=${raw.lo} hi=${raw.hi}`);
-    }
-    return this.zigzagToI32(raw.lo);
+    return this.zigzagToI32(this.readVarint53());
   }
 
   private readBytes(size: number) {

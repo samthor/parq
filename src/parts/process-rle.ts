@@ -1,5 +1,5 @@
-import { decodeVarint32 } from '../varint';
-import { DataResult, DataResultDictLookup, DataType } from '../../types';
+import { decodeVarint32 } from '../varint.js';
+import { DataResult, DataResultDictLookup, DataType } from '../../types.js';
 
 const fromRightMask = [
   0b11111111, 0b01111111, 0b00111111, 0b00011111, 0b00001111, 0b00000111, 0b00000011, 0b00000001,

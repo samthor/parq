@@ -1,11 +1,11 @@
-import * as parquet from '../../dep/thrift/gen-nodejs/parquet';
-import { TCompactProtocolReader } from '../thrift/reader';
-import { Encoding, PageType } from '../const';
-import { SchemaLeafNode } from './schema';
-import { typedArrayView } from '../view';
-import { yieldDataRLE } from './process-rle';
-import { processData } from './process';
-import { DataResult } from '../../types';
+import * as parquet from '../../dep/thrift/gen-nodejs/parquet.js';
+import { TCompactProtocolReader } from '../thrift/reader.js';
+import { Encoding, PageType } from '../const.js';
+import { SchemaLeafNode } from './schema.js';
+import { typedArrayView } from '../view.js';
+import { yieldDataRLE } from './process-rle.js';
+import { processData } from './process.js';
+import { DataResult } from '../../types.js';
 
 export type RawPage = {
   header: InstanceType<typeof parquet.PageHeader>;
@@ -32,6 +32,28 @@ export function readPage(arr: Uint8Array, offset: number = 0): RawPage {
     begin,
     end,
   };
+}
+
+/**
+ * Return the number of rows in this page.
+ */
+export function countForPageHeader(header: InstanceType<typeof parquet.PageHeader>) {
+  if (header.data_page_header) {
+    const dpHeader = header.data_page_header as InstanceType<typeof parquet.DataPageHeader>;
+    return dpHeader.num_values as number;
+  }
+
+  if (header.data_page_header_v2) {
+    const dpHeader = header.data_page_header_v2 as InstanceType<typeof parquet.DataPageHeaderV2>;
+    return dpHeader.num_rows as number;
+  }
+
+  if (header.dictionary_page_header) {
+    const dictHeader = header.dictionary_page_header as InstanceType<typeof parquet.DictionaryPageHeader>;
+    return dictHeader.num_values as number;
+  }
+
+  throw new Error(`Could not handle type of PageHeader: ${header.type}`);
 }
 
 /**

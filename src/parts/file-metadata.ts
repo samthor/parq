@@ -1,7 +1,7 @@
-import { TCompactProtocolReader } from '../thrift/reader';
-import * as parquet from '../../dep/thrift/gen-nodejs/parquet';
-import { decodeSchema, type SchemaLeafNode } from './schema';
-import type { CompressionCodec } from '../const';
+import { TCompactProtocolReader } from '../thrift/reader.js';
+import * as parquet from '../../dep/thrift/gen-nodejs/parquet.js';
+import { decodeSchema, type SchemaLeafNode } from './schema.js';
+import type { CompressionCodec } from '../const.js';
 
 export type Chunk = {
   begin: number;

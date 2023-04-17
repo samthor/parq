@@ -1,7 +1,7 @@
-import { Encoding, ParquetType } from '../const';
-import { processDataRLE } from './process-rle';
-import { typedArrayView } from '../view';
-import { DataResult, DataType } from '../../types';
+import { Encoding, ParquetType } from '../const.js';
+import { processDataRLE } from './process-rle.js';
+import { typedArrayView } from '../view.js';
+import { DataResult, DataType } from '../../types.js';
 
 /**
  * Preprocesses a binary blob of data from Parquet so that it can be efficiently indexed by a
@@ -36,7 +36,7 @@ export function processData(
 
       const out = processDataRLE(arr.subarray(1), count, typeLength);
       return {
-        lookup: true,
+        lookup: 0,
         ...out.pt,
       };
     }

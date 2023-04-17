@@ -19,6 +19,27 @@ export function readVarint32(readByte: () => number): number {
 }
 
 /**
+ * Returns a varint but throws at >53 bits (i.e., {@link Number.MAX_SAFE_INTEGER}).
+ */
+export function readVarint53(readByte: () => number): number {
+  let num = 0;
+  let shift = 0;
+  while (true) {
+    const b = readByte();
+    num = num | ((b & 0x7f) << shift);
+    shift += 7;
+    if (!(b & 0x80)) {
+      break; // if first bit not set
+    }
+    if (shift >= 49) {
+      // TODO: we can consume 4 further bits
+      throw new TypeError(`More than 7 bytes of int53`);
+    }
+  }
+  return num;
+}
+
+/**
  * Decodes a varint64, returning its parts in two numbers.
  */
 export function readVarint64(readByte: () => number): { lo: number; hi: number } {
