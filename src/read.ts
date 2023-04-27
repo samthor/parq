@@ -4,9 +4,10 @@ import { decompress } from './decompress.js';
 import { Chunk, parseFileMetadata, type FileMetadata } from './parts/file-metadata.js';
 import type { SchemaLeafNode } from './parts/schema.js';
 import { typedArrayView } from './view.js';
-import { DataResult, DataType, IdDataResult } from '../types.js';
+import { DataResult, DataType, ReadColumnPart } from '../types.js';
 import {
   countForPageHeader,
+  isDictLookup,
   processTypeDataPage,
   processTypeDataPageV2,
   readPage,
@@ -14,6 +15,12 @@ import {
 import { processDataPlain } from './parts/process.js';
 
 export type Reader = (start: number, end?: number) => Promise<Uint8Array>;
+
+type SimplePart = {
+  id: number;
+  count: number;
+  read(): Promise<DataResult>;
+};
 
 export class ParquetReader {
   r: Reader;
@@ -37,162 +44,132 @@ export class ParquetReader {
     const headerPromise = this.r(0, 4);
     const footerPromise = this.r(-8);
 
-    const header = await headerPromise;
-    if (td.decode(header) !== 'PAR1') {
+    const headerBytes = await headerPromise;
+    if (td.decode(headerBytes) !== 'PAR1') {
       throw new Error(`Not a parquet file: ${this.r}`);
     }
 
-    const footer = await footerPromise;
-    if (td.decode(footer.subarray(4)) !== 'PAR1') {
+    const footerBytes = await footerPromise;
+    if (td.decode(footerBytes.subarray(4)) !== 'PAR1') {
       throw new Error(`Not a parquet file: ${this.r}`);
     }
 
-    const v = typedArrayView(footer);
+    const v = typedArrayView(footerBytes);
     const metadataSize = v.getUint32(0, true);
-    const metadata = await this.r(-8 - metadataSize, -8);
+    const metadataBytes = await this.r(-8 - metadataSize, -8);
 
-    this.metadata = parseFileMetadata(metadata);
+    this.metadata = parseFileMetadata(metadataBytes);
   }
 
   /**
    * Process a chunk from the Parquet file. Each chunk contains an optional dictionary and a number
    * of data pages, of which any may refer back to the dictionary.
    */
-  private async processChunk(chunk: Chunk, schema: SchemaLeafNode) {
-    const arr = await this.r(chunk.begin, chunk.end);
-    let offset = 0;
+  private async *processChunk(
+    chunk: Chunk,
+    schema: SchemaLeafNode,
+    row: number,
+  ): AsyncGenerator<ReadColumnPart, void, void> {
+    let dictPartPromise: Promise<ReadColumnPart> | undefined;
+    const dictId = chunk.begin;
 
-    // This reads the dictionary/pages in parallel. The only efficiency here will be if the data
-    // is gzip-encoded, which can be done in parallel by Node or the browser.
-    let dictPromise = Promise.resolve<undefined | IdDataResult>(undefined);
-    const pagePromises: Promise<IdDataResult>[] = [];
+    if (chunk.dictionarySize) {
+      dictPartPromise = (async () => {
+        const arr = await this.r(chunk.begin, chunk.begin + chunk.dictionarySize);
+        const page = readPage(arr);
+        const count = countForPageHeader(page.header);
+        const data = arr.subarray(page.begin, page.end);
 
-    if (chunk.hasDictionary) {
-      const out = readPage(arr);
-      const count = countForPageHeader(out.header);
-
-      const data = arr.subarray(out.begin, out.end);
-      offset = out.end;
-
-      dictPromise = (async () => {
-        if (out.type !== PageType.DICTIONARY_PAGE) {
-          throw new Error(`Got non-dictionary first page: ${out.header.type}`);
+        if (page.type !== PageType.DICTIONARY_PAGE) {
+          throw new Error(`Got non-dictionary first page: ${page.header.type}`);
         }
-        const dictionaryHeader = out.header.dictionary_page_header as InstanceType<
+        const dictionaryHeader = page.header.dictionary_page_header as InstanceType<
           typeof parquet.DictionaryPageHeader
         >;
         if (dictionaryHeader.encoding !== Encoding.PLAIN_DICTIONARY) {
           // TODO: Is this always true? This lets us just pass the data back as a buffer.
           throw new Error(`Unexpected dictionary encoding: ${dictionaryHeader.encoding}`);
         }
-        const count = dictionaryHeader.num_values as number;
 
-        const raw = await decompress(data, chunk.codec);
-        const dr = processDataPlain(raw, count, schema.type);
         return {
-          id: out.begin,
-          ...dr,
+          id: dictId,
+          count,
+          async read(): Promise<DataResult> {
+            const raw = await decompress(data, chunk.codec);
+            return processDataPlain(raw, count, schema.type);
+          },
+          dict: true,
         };
       })();
     }
 
+    const arr = await this.r(chunk.begin + chunk.dictionarySize, chunk.end);
+    let offset = 0;
     while (offset < arr.length) {
-      const out = readPage(arr, offset);
-      const count = countForPageHeader(out.header);
+      console.debug('reading page at', arr.length, offset);
+      const page = readPage(arr, offset);
+      const count = countForPageHeader(page.header);
 
-      const data = arr.subarray(out.begin, out.end);
-      offset = out.end;
+      const data = arr.subarray(page.begin, page.end);
+      offset = page.end;
 
-      // Read pages in async in case there's any efficiencies to be found.
-      const p = (async () => {
-        const raw = await decompress(data, chunk.codec);
+      const dict = isDictLookup(page.header);
+      const begin = row;
+      row += count;
+      const end = row;
 
-        switch (out.type) {
-          case PageType.DATA_PAGE:
-            return processTypeDataPage(out.header, schema, raw);
+      if (dict && dictPartPromise) {
+        const dictPart = await dictPartPromise;
+        yield dictPart;
+        dictPartPromise = undefined;
+      }
 
-          case PageType.DATA_PAGE_V2:
-            return processTypeDataPageV2(out.header, schema, raw);
+      yield {
+        id: chunk.begin + chunk.dictionarySize + offset,
+        begin,
+        end,
+        count,
+        dict,
+        async read(): Promise<DataResult> {
+          const raw = await decompress(data, chunk.codec);
 
-          default:
-            throw new Error(`Unsupported page type: ${out.header.type}`);
-        }
-      })();
-      pagePromises.push(p.then((dr) => ({ id: out.begin, ...dr })));
+          switch (page.type) {
+            case PageType.DATA_PAGE:
+              return processTypeDataPage(page.header, schema, raw);
+
+            case PageType.DATA_PAGE_V2:
+              return processTypeDataPageV2(page.header, schema, raw);
+
+            default:
+              throw new Error(`Unsupported page type: ${page.header.type}`);
+          }
+        },
+      };
     }
-
-    return {
-      dict: await dictPromise,
-      pages: await Promise.all(pagePromises),
-    };
   }
 
   columnLength() {
     return this.metadata!.columns.length;
   }
 
-  async readColumn(columnNo: number, start: number) {
+  get groups() {
+    return this.metadata!.groups.length;
+  }
+
+  async *readColumn(columnNo: number, groupNo: number): AsyncGenerator<ReadColumnPart, void, void> {
     const metadata = this.metadata!;
 
-    if (metadata.groups.length !== 1) {
-      console.warn('XXX chosing single group from', metadata.groups.length);
-      // throw new Error(`TODO: only support single group for now, found: ${metadata.groups.length}`);
+    if (groupNo < 0 || groupNo >= metadata.groups.length) {
+      throw new RangeError(`Invalid group`);
     }
-    const group = metadata.groups[0];
-//    console.info('got group', group);
+    const group = metadata.groups[groupNo];
+
     const chunk = group.columns[columnNo];
     if (!chunk) {
       throw new Error(`Bad column index: ${columnNo}`);
     }
     const column = metadata.columns[columnNo];
 
-    const result = await this.processChunk(chunk, column.schema);
-
-    // Called whenever a page arrives; all pages should have same type.
-    let type: DataType | undefined;
-    const updateType = (t: DataType) => {
-      if (type === undefined) {
-        type = t;
-      } else if (t !== type) {
-        throw new Error(`Mismatched final data type in Parquet column: ${columnNo}`);
-      }
-    };
-
-    const parts = result.pages.map((p) => {
-      // Actual data. Return simple mode.
-      if (!('lookup' in p)) {
-        updateType(p.type);
-
-        return {
-          isDictLookup: false,
-          data: p,
-        };
-      }
-
-      // Sanity-check dictionary lookup.
-      if (!(p.type === DataType.INT8 || p.type === DataType.INT16 || p.type === DataType.INT32)) {
-        throw new Error(`Got invalid dict lookup type: ${(p as DataResult).type}`);
-      } else if (!result.dict) {
-        throw new Error(`Dictionary lookup without dict, can't index?`);
-      }
-      updateType(result.dict.type);
-
-      return {
-        isDictLookup: true,
-        data: p,
-        dict: result.dict,
-      };
-    });
-
-    return {
-      name: metadata.columns[columnNo].schema.name,
-      gen: (async function* () {
-        // TODO: not actually efficient
-        for (const part of parts) {
-          yield part;
-        }
-      })(),
-      type: type ?? DataType.INT32, // there's no data
-    };
+    yield* this.processChunk(chunk, column.schema, group.start);
   }
 }

@@ -23,8 +23,8 @@ export function processData(
       // PLAIN_DICTIONARY is just RLE but with an initial typeLength byte instead of an expected
       // offset. The offset isn't "known" because RLE is just that, not a fixed up-front size.
       //
-      // Note that this is the encoding of a data page, not the dictionary itself (which is probably
-      // always `Encoding.PLAIN`).
+      // Note that this is the encoding of a data page that references into the dictionary, not the
+      // dictionary itself (which is probably always `Encoding.PLAIN`).
       //
       // "Data page format: the bit width used to encode the entry ids stored as 1 byte (max bit
       // width = 32), followed by the values encoded using RLE/Bit packed described above (with the

@@ -43,6 +43,12 @@ export class TCompactProtocolReader {
     this.readVarint53 = readVarint53.bind(null, readByteBind);
   }
 
+  skipVarint() {
+    while (this.buf[this.at] & 0x80) {
+      ++this.at;
+    }
+  }
+
   skip(type: ThriftType) {
     switch (type) {
       case ThriftType.BOOL:
@@ -53,10 +59,8 @@ export class TCompactProtocolReader {
         break;
       case ThriftType.I16:
       case ThriftType.I32:
-        this.readI32();
-        break;
       case ThriftType.I64:
-        this.readI64();
+        this.skipVarint();
         break;
       case ThriftType.DOUBLE:
         this.readDouble();

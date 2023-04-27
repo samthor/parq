@@ -6,7 +6,7 @@ import type { CompressionCodec } from '../const.js';
 export type Chunk = {
   begin: number;
   end: number;
-  hasDictionary: boolean;
+  dictionarySize: number;
   codec: CompressionCodec;
   columnNo: number;
 };
@@ -33,7 +33,7 @@ export function parseFileMetadata(buf: Uint8Array): FileMetadata {
   const reader = new TCompactProtocolReader(buf);
 
   const s = new parquet.FileMetaData();
-  s.read(reader);
+  s.read(reader); // TODO: for ~48mb metadata, this takes ~500ms - maybe that's fine?
 
   const schemaNode = decodeSchema(s.schema);
   const allColumns: FileMetadata['columns'] = schemaNode.columns.map((schema) => {
@@ -68,12 +68,15 @@ export function parseFileMetadata(buf: Uint8Array): FileMetadata {
       // TODO: The dictionary is always the first-N bytes, but it could be identified here so that
       // the caller can read in parallel.
       const begin = metadata.dictionary_page_offset ?? metadata.data_page_offset;
-      const hasDictionary = Boolean(metadata.dictionary_page_offset);
+      let dictionarySize = 0;
+      if (metadata.dictionary_page_offset) {
+        dictionarySize = metadata.data_page_offset; // this is _from_ the dictionary
+      }
 
       const chunk: Chunk = {
         begin,
         end: rawChunk.file_offset,
-        hasDictionary,
+        dictionarySize,
         codec: metadata.codec,
         columnNo: i,
       };

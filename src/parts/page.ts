@@ -57,6 +57,25 @@ export function countForPageHeader(header: InstanceType<typeof parquet.PageHeade
 }
 
 /**
+ * Does the data under this header refer to the group dictionary?
+ */
+export function isDictLookup(header: InstanceType<typeof parquet.PageHeader>): boolean {
+  const encodings = [Encoding.PLAIN_DICTIONARY, Encoding.RLE_DICTIONARY];
+
+  if (header.data_page_header) {
+    const dpHeader = header.data_page_header as InstanceType<typeof parquet.DataPageHeader>;
+    return encodings.includes(dpHeader.encoding);
+  }
+
+  if (header.data_page_header_v2) {
+    const dpHeader = header.data_page_header_v2 as InstanceType<typeof parquet.DataPageHeaderV2>;
+    return encodings.includes(dpHeader.encoding);
+  }
+
+  throw new Error(`Could not handle type of PageHeader: ${header.type}`);
+}
+
+/**
  * Processes a {@link PageType.DATA_PAGE}.
  */
 export function processTypeDataPage(

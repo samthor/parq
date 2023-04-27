@@ -48,7 +48,26 @@ export type DataResult =
       arr: Uint8Array;
     };
 
-/**
- * An identified result: the ID is unique per-file (byte location of source data).
- */
-export type IdDataResult = { id: number } & DataResult;
+export type ReadColumnPart = {
+  id: number;
+  count: number;
+  read(): Promise<DataResult>;
+} & (
+  | {
+      dict: true;
+    }
+  | {
+      dict: false;
+      lookup?: number;
+
+      /**
+       * The first row of data found here.
+       */
+      begin: number;
+
+      /**
+       * The row after the last row of data found here.
+       */
+      end: number;
+    }
+);

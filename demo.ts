@@ -50,16 +50,24 @@ async function demo(p: string) {
   const stat = await f.stat();
   console.info('operating on', p, 'size', fileSize(stat))
   const r = readerFor(f);
+  await r(-1000); // cheese it
 
   try {
     const reader = new ParquetReader(r);
+    console.time('init');
     await reader.init();
+    console.timeEnd('init');
 
+    console.time('read');
     const cols = await reader.columns();
-
-    const col = await reader.readColumn(0, 0);
-
-//    console.info('done', { col });
+    for (let g = 0; g < reader.groups; ++g) {
+      const col = reader.readColumn(0, g);
+      console.info('got col', col);
+      for await (const part of col) {
+        console.info('got part', part);
+      }
+    }
+    console.timeEnd('read');
   } finally {
     await f.close();
   }
@@ -68,4 +76,4 @@ async function demo(p: string) {
 // from https://www.synthcity.xyz/download.html
 // Notes:
 //  - creates ~300mb buffer to read column from disk, but decompresses Snappy about ~1mb each time
-await demo('sample/complete.parquet');
+await demo(process.argv[2] || 'sample/complete.parquet');
