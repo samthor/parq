@@ -65,12 +65,10 @@ export function parseFileMetadata(buf: Uint8Array): FileMetadata {
         throw new Error(`Did not find page offset`);
       }
 
-      // TODO: The dictionary is always the first-N bytes, but it could be identified here so that
-      // the caller can read in parallel.
       const begin = metadata.dictionary_page_offset ?? metadata.data_page_offset;
       let dictionarySize = 0;
       if (metadata.dictionary_page_offset) {
-        dictionarySize = metadata.data_page_offset; // this is _from_ the dictionary
+        dictionarySize = metadata.data_page_offset - metadata.dictionary_page_offset;
       }
 
       const chunk: Chunk = {

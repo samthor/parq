@@ -2,7 +2,7 @@
  * @fileoverview Better implementation of the TCompactProtocolReader from Thrift.
  */
 
-import { readVarint32, readVarint53 } from '../varint.js';
+import { readVarint32, readZigZagVarint53 } from '../varint.js';
 import { ThriftType } from './types.js';
 
 export enum CompactProtocolType {
@@ -22,6 +22,10 @@ export enum CompactProtocolType {
   CT_UUID = 0x0d,
 }
 
+function zigzagToInt(n: number) {
+  return (n >>> 1) ^ (-1 * (n & 1));
+}
+
 export class TCompactProtocolReader {
   private fieldId = 0;
   private fieldIdStack: number[] = [];
@@ -32,7 +36,7 @@ export class TCompactProtocolReader {
   private pendingBool: boolean | undefined;
 
   private readVarint32: () => number;
-  private readVarint53: () => number;
+  private readZigZagVarint53: () => number;
 
   constructor(buf: Uint8Array, at = 0) {
     this.buf = buf;
@@ -40,13 +44,14 @@ export class TCompactProtocolReader {
 
     const readByteBind = this.readByte.bind(this);
     this.readVarint32 = readVarint32.bind(null, readByteBind);
-    this.readVarint53 = readVarint53.bind(null, readByteBind);
+    this.readZigZagVarint53 = readZigZagVarint53.bind(null, readByteBind);
   }
 
   skipVarint() {
     while (this.buf[this.at] & 0x80) {
       ++this.at;
     }
+    ++this.at;
   }
 
   skip(type: ThriftType) {
@@ -217,11 +222,11 @@ export class TCompactProtocolReader {
   }
 
   readI32(): number {
-    return this.zigzagToI32(this.readVarint32());
+    return zigzagToInt(this.readVarint32());
   }
 
   readI64(): number {
-    return this.zigzagToI32(this.readVarint53());
+    return this.readZigZagVarint53();
   }
 
   private readBytes(size: number) {
@@ -243,10 +248,6 @@ export class TCompactProtocolReader {
   readDouble() {
     const dv = new DataView(this.buf.buffer, this.buf.byteOffset);
     return dv.getFloat64(this.at, true);
-  }
-
-  zigzagToI32(n: number) {
-    return (n >>> 1) ^ (-1 * (n & 1));
   }
 
   getTType(type: CompactProtocolType): ThriftType {
