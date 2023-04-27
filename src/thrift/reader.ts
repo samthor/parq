@@ -2,7 +2,7 @@
  * @fileoverview Better implementation of the TCompactProtocolReader from Thrift.
  */
 
-import { readVarint32, readZigZagVarint53 } from '../varint.js';
+import { readVarint32, readZigZagVarint32, readZigZagVarint53 } from '../varint.js';
 import { ThriftType } from './types.js';
 
 export enum CompactProtocolType {
@@ -22,36 +22,30 @@ export enum CompactProtocolType {
   CT_UUID = 0x0d,
 }
 
-function zigzagToInt(n: number) {
-  return (n >>> 1) ^ (-1 * (n & 1));
-}
-
-export class TCompactProtocolReader {
+export abstract class TCompactProtocolReader {
   private fieldId = 0;
   private fieldIdStack: number[] = [];
-
-  private buf: Uint8Array;
-  at = 0;
 
   private pendingBool: boolean | undefined;
 
   private readVarint32: () => number;
+  private readZigZagVarint32: () => number;
   private readZigZagVarint53: () => number;
 
-  constructor(buf: Uint8Array, at = 0) {
-    this.buf = buf;
-    this.at = at;
-
+  constructor() {
     const readByteBind = this.readByte.bind(this);
     this.readVarint32 = readVarint32.bind(null, readByteBind);
+    this.readZigZagVarint32 = readZigZagVarint32.bind(null, readByteBind);
     this.readZigZagVarint53 = readZigZagVarint53.bind(null, readByteBind);
   }
 
   skipVarint() {
-    while (this.buf[this.at] & 0x80) {
-      ++this.at;
+    for (;;) {
+      const b = this.readByte();
+      if (!(b & 0x80)) {
+        break;
+      }
     }
-    ++this.at;
   }
 
   skip(type: ThriftType) {
@@ -211,43 +205,28 @@ export class TCompactProtocolReader {
     return b === CompactProtocolType.CT_BOOLEAN_TRUE;
   }
 
-  readByte(): number {
-    const out = this.buf[this.at];
-    ++this.at;
-    return out;
-  }
+  abstract readByte(): number;
+  abstract readBytes(size: number): Uint8Array;
 
   readI16(): number {
     return this.readI32(); // lol
   }
 
   readI32(): number {
-    return zigzagToInt(this.readVarint32());
+    return this.readZigZagVarint32();
   }
 
   readI64(): number {
     return this.readZigZagVarint53();
   }
 
-  private readBytes(size: number) {
-    if (size === 0) {
-      return new Uint8Array();
-    } else if (size < 0) {
-      throw new TypeError(`Got -ve binary size: ${size}`);
-    }
-
-    const end = this.at + size;
-    const out = this.buf.subarray(this.at, end);
-    this.at = end;
-    return out;
-  }
-
   /**
    * Reads a double. This is always 8 bytes. Little-endian.
    */
   readDouble() {
-    const dv = new DataView(this.buf.buffer, this.buf.byteOffset);
-    return dv.getFloat64(this.at, true);
+    const bytes = this.readBytes(8);
+    const dv = new DataView(bytes);
+    return dv.getFloat64(0, true);
   }
 
   getTType(type: CompactProtocolType): ThriftType {
@@ -293,5 +272,128 @@ export class TCompactProtocolReader {
   readString() {
     const b = this.readBinary();
     return new TextDecoder().decode(b);
+  }
+}
+
+/**
+ * Reads a Thrift-compact encoded stream from a concrete buffer.
+ */
+export class TCompactProtocolReaderBuffer extends TCompactProtocolReader {
+  private buf: Uint8Array;
+  at: number;
+
+  constructor(buf: Uint8Array, at = 0) {
+    super();
+    this.buf = buf;
+    this.at = at;
+  }
+
+  readByte(): number {
+    const out = this.buf[this.at];
+    ++this.at;
+    return out;
+  }
+
+  readBytes(size: number): Uint8Array {
+    if (size === 0) {
+      return new Uint8Array();
+    } else if (size < 0) {
+      throw new TypeError(`Got -ve binary size: ${size}`);
+    }
+
+    const end = this.at + size;
+    const out = this.buf.subarray(this.at, end);
+    this.at = end;
+    return out;
+  }
+
+  readDouble(): number {
+    const dv = new DataView(this.buf.buffer, this.buf.byteOffset);
+    const out = dv.getFloat64(this.at, true);
+    this.at += 8;
+    return out;
+  }
+}
+
+export class TCompactProtocolReaderPoll_OutOfData extends Error {}
+
+/**
+ * Reads a Thrift-compact encoded stream from a source which may be polled for additional bytes.
+ *
+ * TODO: This isn't async which basically makes it useless.
+ */
+export class TCompactProtocolReaderPoll extends TCompactProtocolReader {
+  private more: (min: number) => Uint8Array;
+  private pending: Uint8Array = new Uint8Array();
+  private at = 0;
+  private _consumed = 0;
+
+  get consumed() {
+    return this._consumed;
+  }
+
+  /**
+   * @param more To provide more bytes. Must always return >= min request.
+   */
+  constructor(arg: Uint8Array | ((min: number) => Uint8Array)) {
+    super();
+
+    if (arg instanceof Uint8Array) {
+      this.pending = arg;
+      this.more = () => {
+        throw new TCompactProtocolReaderPoll_OutOfData();
+      };
+    } else {
+      this.more = arg;
+    }
+  }
+
+  private ensure(min: number) {
+    if (this.at + min <= this.pending.length) {
+      return; // ok!
+    }
+
+    const suffix = this.pending.subarray(this.at);
+    console.debug('requesting more: suffix=', suffix.length, 'min', min);
+    min -= suffix.length;
+
+    const update = this.more(min);
+    if (update.length < min) {
+      throw new TCompactProtocolReaderPoll_OutOfData();
+    }
+
+    if (suffix.length) {
+      // Need to combine the remaining suffix with new data. Just create a new buffer, oh well.
+      this.pending = new Uint8Array(suffix.length + update.length);
+      this.pending.set(suffix);
+      this.pending.set(update, suffix.length);
+    } else {
+      // Can use verbatim, no prior data to keep.
+      this.pending = update;
+    }
+    this.at = 0;
+  }
+
+  readByte(): number {
+    this.ensure(1);
+    const out = this.pending[this.at];
+    ++this.at;
+    ++this._consumed;
+    return out;
+  }
+
+  readBytes(size: number): Uint8Array {
+    if (size === 0) {
+      return new Uint8Array();
+    } else if (size < 0) {
+      throw new TypeError(`Got -ve binary size: ${size}`);
+    }
+    this.ensure(size);
+    this._consumed += size;
+
+    const end = this.at + size;
+    const out = this.pending.subarray(this.at, end);
+    this.at = end;
+    return out;
   }
 }

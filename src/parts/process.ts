@@ -37,7 +37,7 @@ export function processData(
 
       const out = processDataRLE(arr.subarray(1), count, typeLength);
       return {
-        lookup: 0, // indicate this will index something else
+        lookup: true, // indicate this will index something else
         ...out.pt,
       };
     }

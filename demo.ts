@@ -1,4 +1,5 @@
 import { ParquetReader } from './src/read.js';
+import { buildChunkReader } from './src/helper/chunk-reader.js';
 import * as fs from 'node:fs';
 
 const fileSize = (raw: number | { size: number }) => {
@@ -36,11 +37,16 @@ const readerFor = (f: fs.promises.FileHandle) => {
     const length = end - start;
     const buffer = new Uint8Array(length);
     const out = await f.read(buffer, 0, length, start);
-    console.debug('read', fileSize(length));
+    //    console.debug('read', fileSize(length));
 
     if (out.bytesRead !== length) {
-      throw new Error(`Could not read desired length=${length} bytesRead=${out.bytesRead}`);
+      if (size - start === out.bytesRead) {
+        // This was an "overread" of the end of the file, ignore
+      } else {
+        throw new Error(`Could not read desired length=${length} bytesRead=${out.bytesRead}`);
+      }
     }
+
     return buffer;
   };
 };
@@ -48,9 +54,8 @@ const readerFor = (f: fs.promises.FileHandle) => {
 async function demo(p: string) {
   const f = await fs.promises.open(p);
   const stat = await f.stat();
-  console.info('operating on', p, 'size', fileSize(stat))
+  console.info('operating on', p, 'size', fileSize(stat));
   const r = readerFor(f);
-  await r(-1000); // cheese it
 
   try {
     const reader = new ParquetReader(r);
@@ -58,16 +63,20 @@ async function demo(p: string) {
     await reader.init();
     console.timeEnd('init');
 
-    console.time('read');
+    console.time('index');
     const cols = await reader.columns();
-    for (let g = 0; g < reader.groups; ++g) {
-      const col = reader.readColumn(0, g);
-      console.info('got col', col);
-      for await (const part of col) {
-        console.info('got part', part);
+    const tasks = [...cols].map(async (c, i) => {
+      const gen = reader.indexColumnGroup(i, 0);
+      let p = 0;
+      for await (const part of gen) {
+        const data = await part.read();
+        console.info('got data', { c, group: 0, page: p, id: part.id, lookup: part.lookup }, data);
+        ++p;
+        // XXX
       }
-    }
-    console.timeEnd('read');
+    });
+    await Promise.all(tasks);
+    console.timeEnd('index');
   } finally {
     await f.close();
   }

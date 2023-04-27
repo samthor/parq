@@ -1,5 +1,5 @@
 import * as parquet from '../../dep/thrift/gen-nodejs/parquet.js';
-import { TCompactProtocolReader } from '../thrift/reader.js';
+import { TCompactProtocolReaderBuffer } from '../thrift/reader.js';
 import { Encoding, PageType } from '../const.js';
 import { SchemaLeafNode } from './schema.js';
 import { typedArrayView } from '../view.js';
@@ -13,26 +13,6 @@ export type RawPage = {
   begin: number;
   end: number;
 };
-
-/**
- * Reads a single page (Thrift-encoded header + byte range for data) from the passed data.
- */
-export function readPage(arr: Uint8Array, offset: number = 0): RawPage {
-  const reader = new TCompactProtocolReader(arr, offset);
-
-  const header = new parquet.PageHeader();
-  header.read(reader);
-
-  const begin = reader.at;
-  const end = begin + (header.compressed_page_size ?? 0);
-
-  return {
-    header,
-    type: header.type as PageType,
-    begin,
-    end,
-  };
-}
 
 /**
  * Return the number of rows in this page.

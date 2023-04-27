@@ -105,6 +105,11 @@ export function readZigZagVarint53(readByte: () => number): number {
   return joinInt64(low, high);
 }
 
+export function readZigZagVarint32(readByte: () => number): number {
+  const n = readVarint32(readByte);
+  return (n >>> 1) ^ (-1 * (n & 1));
+}
+
 /**
  * Decodes a varint32, returning the value and number of bytes consumed.
  */

@@ -11,7 +11,7 @@ export enum DataType {
 /**
  * Data that may optionally be used to lookup other data in a dictionary.
  */
-export type DataResultDictLookup = { lookup?: number } & (
+export type DataResultDictLookup = { lookup?: true } & (
   | {
       type: DataType.INT8;
       arr: Int8Array;
@@ -71,3 +71,6 @@ export type ReadColumnPart = {
       end: number;
     }
 );
+
+export type Reader = (start: number, end?: number) => Promise<Uint8Array>;
+
