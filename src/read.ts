@@ -5,7 +5,12 @@ import { Chunk, parseFileMetadata, type FileMetadata } from './parts/file-metada
 import type { SchemaLeafNode } from './parts/schema.js';
 import { typedArrayView } from './view.js';
 import { DataResult, DataType, IdDataResult } from '../types.js';
-import { countForPageHeader, processTypeDataPage, processTypeDataPageV2, readPage } from './parts/page.js';
+import {
+  countForPageHeader,
+  processTypeDataPage,
+  processTypeDataPageV2,
+  readPage,
+} from './parts/page.js';
 import { processDataPlain } from './parts/process.js';
 
 export type Reader = (start: number, end?: number) => Promise<Uint8Array>;
@@ -130,9 +135,11 @@ export class ParquetReader {
     const metadata = this.metadata!;
 
     if (metadata.groups.length !== 1) {
-      throw new Error(`TODO: only support single group for now`);
+      console.warn('XXX chosing single group from', metadata.groups.length);
+      // throw new Error(`TODO: only support single group for now, found: ${metadata.groups.length}`);
     }
     const group = metadata.groups[0];
+//    console.info('got group', group);
     const chunk = group.columns[columnNo];
     if (!chunk) {
       throw new Error(`Bad column index: ${columnNo}`);

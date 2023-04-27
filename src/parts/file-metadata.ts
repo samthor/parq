@@ -34,7 +34,6 @@ export function parseFileMetadata(buf: Uint8Array): FileMetadata {
 
   const s = new parquet.FileMetaData();
   s.read(reader);
-  console.info('file', s);
 
   const schemaNode = decodeSchema(s.schema);
   const allColumns: FileMetadata['columns'] = schemaNode.columns.map((schema) => {

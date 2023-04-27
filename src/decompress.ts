@@ -12,7 +12,12 @@ export async function decompress(arr: Uint8Array, codec: CompressionCodec): Prom
       return arr;
 
     case CompressionCodec.SNAPPY:
-      return snappyDecompress(arr);
+      console.time('snappy-' + arr.length);
+      try {
+        return snappyDecompress(arr);
+      } finally {
+        console.timeEnd('snappy-' + arr.length);
+      }
 
     case CompressionCodec.GZIP:
       throw new Error(`TODO: implement via browser/node support`);

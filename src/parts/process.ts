@@ -20,10 +20,11 @@ export function processData(
     }
 
     case Encoding.PLAIN_DICTIONARY: {
-      // PLAIN_DICTIONARY is just RLE but with an initial typeLength byte.
+      // PLAIN_DICTIONARY is just RLE but with an initial typeLength byte instead of an expected
+      // offset. The offset isn't "known" because RLE is just that, not a fixed up-front size.
       //
       // Note that this is the encoding of a data page, not the dictionary itself (which is probably
-      // always plain).
+      // always `Encoding.PLAIN`).
       //
       // "Data page format: the bit width used to encode the entry ids stored as 1 byte (max bit
       // width = 32), followed by the values encoded using RLE/Bit packed described above (with the
@@ -36,7 +37,7 @@ export function processData(
 
       const out = processDataRLE(arr.subarray(1), count, typeLength);
       return {
-        lookup: 0,
+        lookup: 0, // indicate this will index something else
         ...out.pt,
       };
     }

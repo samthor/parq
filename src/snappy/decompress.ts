@@ -1,4 +1,4 @@
-import { decodeVarint32 } from '../varint';
+import { decodeVarint32 } from '../varint.js';
 
 const numberOfBytesMask: number[] = [0, 0xff, 0xffff, 0xffffff, 0xffffffff];
 const TYPED_ARRAY_THRESHOLD = 8192;

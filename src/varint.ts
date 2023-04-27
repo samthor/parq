@@ -12,7 +12,13 @@ export function readVarint32(readByte: () => number): number {
       break; // if first bit not set
     }
     if (shift >= 28) {
-      throw new TypeError(`More than 5 bytes of int32`);
+      const final = readByte();
+      if (final & 0b11110000) {
+        // Can only read 4 more bits (28 -> 32)
+        throw new Error(`Too much data for varint32`);
+      }
+      num = num | (b << shift);
+      break;
     }
   }
   return num;
@@ -32,41 +38,16 @@ export function readVarint53(readByte: () => number): number {
       break; // if first bit not set
     }
     if (shift >= 49) {
-      // TODO: we can consume 4 further bits
-      throw new TypeError(`More than 7 bytes of int53`);
+      const final = readByte();
+      if (final & 0b11110000) {
+        // Can only read 4 more bits (49 -> 53)
+        throw new Error(`Too much data for varint53`);
+      }
+      num = num | (b << shift);
+      break;
     }
   }
   return num;
-}
-
-/**
- * Decodes a varint64, returning its parts in two numbers.
- */
-export function readVarint64(readByte: () => number): { lo: number; hi: number } {
-  let rsize = 0;
-  let lo = 0;
-  let hi = 0;
-  let shift = 0;
-  while (true) {
-    const b = readByte();
-    rsize++;
-    if (shift <= 25) {
-      lo = lo | ((b & 0x7f) << shift);
-    } else if (25 < shift && shift < 32) {
-      lo = lo | ((b & 0x7f) << shift);
-      hi = hi | ((b & 0x7f) >>> (32 - shift));
-    } else {
-      hi = hi | ((b & 0x7f) << (shift - 32));
-    }
-    shift += 7;
-    if (!(b & 0x80)) {
-      break;
-    }
-    if (rsize >= 10) {
-      throw new TypeError(`More than 10 bytes of int64`);
-    }
-  }
-  return { lo, hi };
 }
 
 /**

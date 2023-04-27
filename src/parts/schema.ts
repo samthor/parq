@@ -1,5 +1,5 @@
-import type * as parquet from '../../dep/thrift/gen-nodejs/parquet';
-import { FieldRepetitionType, ParquetType, type CompressionCodec } from '../const';
+import type * as parquet from '../../dep/thrift/gen-nodejs/parquet.js';
+import { FieldRepetitionType, ParquetType, type CompressionCodec } from '../const.js';
 
 export type SchemaNode = {
   nested: true;
