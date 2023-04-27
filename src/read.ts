@@ -3,7 +3,7 @@ import { Encoding, PageType } from './const.js';
 import { decompress } from './decompress.js';
 import { parseFileMetadata, type FileMetadata } from './parts/file-metadata.js';
 import { typedArrayView } from './view.js';
-import { DataResult, ReadColumnPart, Reader } from '../types.js';
+import { DataResult, DataResultDictLookup, ReadColumnPart, Reader } from '../types.js';
 import {
   countForPageHeader,
   isDictLookup,
@@ -140,13 +140,10 @@ export class ParquetReader {
         throw new Error(`Could not find valid page while indexing`);
       }
 
+      const start = position;
       const count = countForPageHeader(header);
       const dataBegin = offset + consumed;
       const dataEnd = dataBegin + header.compressed_page_size;
-
-      const begin = position;
-      position += count;
-      const end = position;
 
       const read = async (): Promise<DataResult> => {
         const compressed = await this.r(dataBegin, dataEnd);
@@ -164,15 +161,24 @@ export class ParquetReader {
         }
       };
 
-      const o: ReadColumnPart = { id: offset, begin, end, count, dict: false, read };
+      // If this id a dict lookup, include the lookup 'id' and change the read type.
       if (isDictLookup(header)) {
         if (!chunk.dictionarySize) {
           throw new Error(`got dict lookup without dict`);
         }
-        o.lookup = chunk.begin; // id is start of chunk
+        yield {
+          id: offset,
+          count,
+          dict: false,
+          lookup: chunk.begin,
+          start,
+          read: read as () => Promise<DataResultDictLookup>,
+        };
+      } else {
+        yield { id: offset, count, dict: false, start, read };
       }
-      yield o;
 
+      position += count;
       offset += consumed;
       offset += header.compressed_page_size;
     }

@@ -1,5 +1,4 @@
 import { ParquetReader } from './src/read.js';
-import { buildChunkReader } from './src/helper/chunk-reader.js';
 import * as fs from 'node:fs';
 
 const fileSize = (raw: number | { size: number }) => {
@@ -37,7 +36,6 @@ const readerFor = (f: fs.promises.FileHandle) => {
     const length = end - start;
     const buffer = new Uint8Array(length);
     const out = await f.read(buffer, 0, length, start);
-    //    console.debug('read', fileSize(length));
 
     if (out.bytesRead !== length) {
       if (size - start === out.bytesRead) {
@@ -63,14 +61,28 @@ async function demo(p: string) {
     await reader.init();
     console.timeEnd('init');
 
+    // Read all parts of 0th group for demo.
     console.time('index');
     const cols = await reader.columns();
     const tasks = [...cols].map(async (c, i) => {
       const gen = reader.indexColumnGroup(i, 0);
+      let readDict = false;
       let p = 0;
       for await (const part of gen) {
         const data = await part.read();
-        console.info('got data', { c, group: 0, page: p, id: part.id, lookup: part.lookup }, data);
+
+        if ('lookup' in part) {
+          if (readDict) {
+            throw new Error(`read dict >1 time`);
+          }
+          const dictPart = await reader.dictForColumnGroup(i, 0);
+          const dictData = await dictPart!.read();
+          console.info('got lookup data', { c, group: 0, page: p, id: part.id }, data, dictData);
+          readDict = true;
+        } else {
+          console.info('got inline data', { c, group: 0, page: p, id: part.id }, data);
+        }
+
         ++p;
         // XXX
       }
