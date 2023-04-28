@@ -1,11 +1,10 @@
 import * as parquet from '../../dep/thrift/gen-nodejs/parquet.js';
-import { TCompactProtocolReaderBuffer } from '../thrift/reader.js';
 import { Encoding, PageType } from '../const.js';
 import { SchemaLeafNode } from './schema.js';
 import { typedArrayView } from '../view.js';
 import { yieldDataRLE } from './process-rle.js';
 import { processData } from './process.js';
-import { DataResult } from '../../types.js';
+import { ColumnDataResult } from '../../types.js';
 
 export type RawPage = {
   header: InstanceType<typeof parquet.PageHeader>;
@@ -62,7 +61,7 @@ export function processTypeDataPage(
   header: InstanceType<typeof parquet.PageHeader>,
   schema: SchemaLeafNode,
   data: Uint8Array,
-): DataResult {
+): ColumnDataResult {
   const dpHeader = header.data_page_header as InstanceType<typeof parquet.DataPageHeader>;
   const valueCount = dpHeader.num_values as number;
 
@@ -119,7 +118,7 @@ export function processTypeDataPageV2(
   header: InstanceType<typeof parquet.PageHeader>,
   schema: SchemaLeafNode,
   data: Uint8Array,
-): DataResult {
+): ColumnDataResult {
   throw new Error('TODO: V2');
 }
 

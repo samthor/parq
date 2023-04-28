@@ -1,7 +1,7 @@
 import { Encoding, ParquetType } from '../const.js';
 import { processDataRLE } from './process-rle.js';
 import { typedArrayView } from '../view.js';
-import { DataResult, DataType } from '../../types.js';
+import { ColumnDataResult, DataType } from '../../types.js';
 
 /**
  * Preprocesses a binary blob of data from Parquet so that it can be efficiently indexed by a
@@ -13,7 +13,7 @@ export function processData(
   count: number,
   type: ParquetType,
   typeLength: number,
-): DataResult {
+): ColumnDataResult {
   switch (encoding) {
     case Encoding.PLAIN: {
       return processDataPlain(arr, count, type);
@@ -24,7 +24,7 @@ export function processData(
       // offset. The offset isn't "known" because RLE is just that, not a fixed up-front size.
       //
       // Note that this is the encoding of a data page that references into the dictionary, not the
-      // dictionary itself (which is probably always `Encoding.PLAIN`).
+      // dictionary itself (which is probably always `Encoding.PLAIN_DICTIONARY`).
       //
       // "Data page format: the bit width used to encode the entry ids stored as 1 byte (max bit
       // width = 32), followed by the values encoded using RLE/Bit packed described above (with the
@@ -63,7 +63,7 @@ export function processData(
  * Maps a plain section of Parquet data (i.e., values stored in regular bytes) to a matching JS
  * typed array view.
  */
-export function processDataPlain(arr: Uint8Array, count: number, type: ParquetType): DataResult {
+export function processDataPlain(arr: Uint8Array, count: number, type: ParquetType): ColumnDataResult {
   switch (type) {
     case ParquetType.INT32: {
       return {

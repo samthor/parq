@@ -11,7 +11,7 @@ export enum DataType {
 /**
  * Data that may be used to lookup other data in a dictionary.
  */
-export type DataResultLookup = { lookup?: true } & (
+export type ColumnDataResultLookup = { lookup?: true } & (
   | {
       type: DataType.INT8;
       arr: Int8Array;
@@ -29,7 +29,7 @@ export type DataResultLookup = { lookup?: true } & (
 /**
  * Any data that has been expanded for return from reading some encoded file.
  */
-export type DataResult =
+export type ColumnDataResult =
   | {
       type: DataType.INT8;
       arr: Int8Array;
@@ -72,18 +72,18 @@ export type ReadColumnPart = {
 } & (
   | {
       dict: true;
-      read(): Promise<DataResult>;
+      read(): Promise<ColumnDataResult>;
     }
   | {
       dict: false;
       lookup: number;
       start: number;
-      read(): Promise<DataResultLookup>;
+      read(): Promise<ColumnDataResultLookup>;
     }
   | {
       dict: false;
       start: number;
-      read(): Promise<DataResult>;
+      read(): Promise<ColumnDataResult>;
     }
 );
 

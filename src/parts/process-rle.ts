@@ -1,5 +1,5 @@
 import { decodeVarint32 } from '../varint.js';
-import { DataResult, DataResultDictLookup, DataType } from '../../types.js';
+import { ColumnDataResultLookup, DataType } from '../../types.js';
 
 const fromRightMask = [
   0b11111111, 0b01111111, 0b00111111, 0b00011111, 0b00001111, 0b00000111, 0b00000011, 0b00000001,
@@ -300,7 +300,7 @@ export function processDataRLE(
   arr: Uint8Array,
   totalCount: number,
   typeLength: number,
-): { pt: DataResultDictLookup; offset: number } {
+): { pt: ColumnDataResultLookup; offset: number } {
   const typeLengthBytes = ((typeLength - 1) >> 3) + 1;
   const readRunRepeated = readRunRepeatedTable[typeLengthBytes] ?? throwReadRunRepeated;
 

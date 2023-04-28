@@ -3,7 +3,7 @@ import { Encoding, PageType } from './const.js';
 import { decompress } from './decompress.js';
 import { parseFileMetadata, type FileMetadata } from './parts/file-metadata.js';
 import { typedArrayView } from './view.js';
-import { DataResult, DataResultLookup, ReadColumnPart, Reader } from '../types.js';
+import { ColumnDataResult, ColumnDataResultLookup, ReadColumnPart, Reader } from '../types.js';
 import {
   countForPageHeader,
   isDictLookup,
@@ -90,7 +90,7 @@ export class ParquetReader {
     return {
       id: chunk.begin,
       count,
-      async read(): Promise<DataResult> {
+      async read(): Promise<ColumnDataResult> {
         const buf = await decompress(compressed, chunk.codec);
         return processDataPlain(buf, count, column.schema.type);
       },
@@ -145,7 +145,7 @@ export class ParquetReader {
       const dataBegin = offset + consumed;
       const dataEnd = dataBegin + header.compressed_page_size;
 
-      const read = async (): Promise<DataResult> => {
+      const read = async (): Promise<ColumnDataResult> => {
         const compressed = await this.r(dataBegin, dataEnd);
         const buf = await decompress(compressed, chunk.codec);
 
@@ -172,7 +172,7 @@ export class ParquetReader {
           dict: false,
           lookup: chunk.begin,
           start,
-          read: read as () => Promise<DataResultLookup>,
+          read: read as () => Promise<ColumnDataResultLookup>,
         };
       } else {
         yield { id: offset, count, dict: false, start, read };
