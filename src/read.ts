@@ -3,7 +3,7 @@ import { Encoding, PageType } from './const.js';
 import { decompress } from './decompress.js';
 import { parseFileMetadata, type FileMetadata } from './parts/file-metadata.js';
 import { typedArrayView } from './view.js';
-import { DataResult, DataResultDictLookup, ReadColumnPart, Reader } from '../types.js';
+import { DataResult, DataResultLookup, ReadColumnPart, Reader } from '../types.js';
 import {
   countForPageHeader,
   isDictLookup,
@@ -77,7 +77,7 @@ export class ParquetReader {
     const compressed = buffer.subarray(reader.at, reader.at + header.compressed_page_size);
 
     if (header.type !== PageType.DICTIONARY_PAGE) {
-      throw new Error(`Got non-dictionary first page: ${header.type}`);
+      throw new Error(`Got invalid type for dict: ${header.type}`);
     }
     const dictionaryHeader = header.dictionary_page_header as InstanceType<
       typeof parquet.DictionaryPageHeader
@@ -172,7 +172,7 @@ export class ParquetReader {
           dict: false,
           lookup: chunk.begin,
           start,
-          read: read as () => Promise<DataResultDictLookup>,
+          read: read as () => Promise<DataResultLookup>,
         };
       } else {
         yield { id: offset, count, dict: false, start, read };
