@@ -3,7 +3,7 @@ import { Encoding, PageType } from './const.js';
 import { decompress } from './decompress.js';
 import { parseFileMetadata, type FileMetadata } from './parts/file-metadata.js';
 import { typedArrayView } from './view.js';
-import { ColumnDataResult, ColumnDataResultLookup, ReadColumnPart, Reader } from '../types.js';
+import { ColumnDataResult, ColumnDataResultLookup, ReadColumnPart, ReadDictPart, Reader } from '../types.js';
 import {
   countForPageHeader,
   isDictLookup,
@@ -20,10 +20,6 @@ import {
 export class ParquetReader {
   r: Reader;
   metadata?: FileMetadata;
-
-  rows() {
-    return this.metadata!.rows;
-  }
 
   constructor(r: Reader) {
     this.r = r;
@@ -59,9 +55,9 @@ export class ParquetReader {
   /**
    * Reads the dictionary part for the given column/group.
    *
-   * Unlike {@link #indexColumnGroup}, this reads all the dictionary row data right away.
+   * Unlike {@link #indexColumnGroup}, this reads all the dictionary value data right away.
    */
-  async dictForColumnGroup(columnNo: number, groupNo: number): Promise<ReadColumnPart | null> {
+  async dictForColumnGroup(columnNo: number, groupNo: number): Promise<ReadDictPart | null> {
     const column = this.metadata!.columns[columnNo];
     const chunk = column.chunks[groupNo];
     if (chunk.dictionarySize === 0) {
@@ -186,6 +182,16 @@ export class ParquetReader {
 
   columnLength() {
     return this.metadata!.columns.length;
+  }
+
+  rows() {
+    return this.metadata!.rows;
+  }
+
+  groupsAt() {
+    return this.metadata!.groups.map(({ start, end }) => {
+      return { start, end };
+    });
   }
 
   get groups() {

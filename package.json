@@ -2,6 +2,7 @@
 	"devDependencies": {
 		"@types/node": "^18.15.11",
 		"esbuild": "^0.17.17",
+		"thorish": "^1.1.4",
 		"tsx": "^3.12.6"
 	},
 	"type": "module"

@@ -3,11 +3,13 @@ lockfileVersion: 5.4
 specifiers:
   '@types/node': ^18.15.11
   esbuild: ^0.17.17
+  thorish: ^1.1.4
   tsx: ^3.12.6
 
 devDependencies:
   '@types/node': 18.15.11
   esbuild: 0.17.17
+  thorish: 1.1.4
   tsx: 3.12.6
 
 packages:
@@ -291,6 +293,10 @@ packages:
   /source-map/0.6.1:
     resolution: {integrity: sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==}
     engines: {node: '>=0.10.0'}
+    dev: true
+
+  /thorish/1.1.4:
+    resolution: {integrity: sha512-JoTfhBsO4VM6dtCM1HgXQCbsy3OcPq8CRqraeTyQKF855Gz+e5F9D893NZm1AME6o+b4jB7AGOSAbzNj2cmsGw==}
     dev: true
 
   /tsx/3.12.6:

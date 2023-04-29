@@ -59,6 +59,13 @@ export type ColumnDataResult =
       arr: Uint8Array;
     };
 
+export type ReadDictPart = {
+  id: number;
+  count: number;
+  dict: true;
+  read(): Promise<ColumnDataResult>;
+};
+
 /**
  * Metadata and read helper for a part of data. This is basically wrapping the smallest contiguous
  * chunk of column data from the underlying data source.
@@ -69,20 +76,14 @@ export type ColumnDataResult =
 export type ReadColumnPart = {
   id: number;
   count: number;
+  dict: false;
+  start: number;
 } & (
   | {
-      dict: true;
-      read(): Promise<ColumnDataResult>;
-    }
-  | {
-      dict: false;
       lookup: number;
-      start: number;
       read(): Promise<ColumnDataResultLookup>;
     }
   | {
-      dict: false;
-      start: number;
       read(): Promise<ColumnDataResult>;
     }
 );
