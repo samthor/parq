@@ -1,4 +1,4 @@
-import type { ColumnDataResult, ReadColumnPart } from '../../types.js';
+import type { ReadColumnPart, ReadDictPart, ReadPart } from '../../types.js';
 import type { ParquetReader } from '../read.js';
 
 type IndexEntry = {
@@ -20,14 +20,12 @@ export class ParquetIndexer {
   private r: ParquetReader;
   private index: IndexEntry[];
   private columnNo: number;
+  private listener: (r: ReadPart) => void;
 
-  get _index() {
-    return this.index;
-  }
-
-  constructor(r: ParquetReader, columnNo: number) {
+  constructor(r: ParquetReader, columnNo: number, listener: (r: ReadPart) => void) {
     this.r = r;
     this.columnNo = columnNo;
+    this.listener = listener;
 
     // These groups are always contiguous (they have a `num_rows` field, not start/end).
     this.index = this.r.groupsAt().map((g, groupNo) => {
@@ -82,6 +80,7 @@ export class ParquetIndexer {
 
     await (groupEntry.pending = (async () => {
       const updates: IndexEntry[] = [];
+      let dictPartPromise: Promise<ReadDictPart | null> | undefined;
 
       const gen = this.r.indexColumnGroup(this.columnNo, groupNo);
       for await (const next of gen) {
@@ -90,26 +89,40 @@ export class ParquetIndexer {
           at: next.start,
           r: next,
         });
+        this.listener(next);
+
+        if (next.dict && !dictPartPromise) {
+          dictPartPromise = this.r.dictForColumnGroup(this.columnNo, groupNo);
+        }
       }
 
-      // We might have moved since this started, find ourselves again. Unfortunately O(n).
-      const selfIndex = this.index.indexOf(groupEntry);
+      // We might have moved since this started (only +ve), find ourselves again. Sadly O(n).
+      const selfIndex = this.index.indexOf(groupEntry, index);
       if (selfIndex === -1) {
         throw new Error(`? removed from index early`);
       }
       this.index.splice(selfIndex, 1, ...updates);
+
+      const dictPart = await dictPartPromise;
+      if (dictPart) {
+        this.listener(dictPart);
+      }
     })());
 
     return true;
   }
 
-  async readRange({
+  /**
+   * Finds the range of data that must be read to satisfy the query. Does not actually read or
+   * cache the underlying data, just the index.
+   */
+  async findRange({
     start,
     end,
   }: {
     start: number;
     end: number;
-  }): Promise<{ start: number; data: ColumnDataResult[] }> {
+  }): Promise<{ start: number; data: ReadColumnPart[] }> {
     const rows = this.r.rows();
     start = clamp(start, 0, rows);
     end = clamp(end, start, rows);
@@ -118,24 +131,22 @@ export class ParquetIndexer {
       return { start: 0, data: [] };
     }
 
-    const si = this.#find(start);
-    const ei = this.#find(end - 1); // not inclusive, and we know end > start
+    for (;;) {
+      const si = this.#find(start);
+      const ei = this.#find(end - 1); // not inclusive, and we know end > start
 
-    const indexParts = this.index.slice(si, ei + 1);
-    const expandTasks = await Promise.all(indexParts.map((e, i) => this.#expandGroup(si + i)));
-    if (expandTasks.some((x) => x)) {
-      // something changed, be lazy and run again
-      return this.readRange({ start, end });
+      const indexParts = this.index.slice(si, ei + 1);
+      const expandTasks = await Promise.all(indexParts.map((e, i) => this.#expandGroup(si + i)));
+      if (expandTasks.some((x) => x)) {
+        // something changed, be lazy and run again
+        continue;
+      }
+
+      return {
+        start: indexParts[0].at,
+        // TODO: just return IDs?
+        data: indexParts.map(({ r }) => r!),
+      };
     }
-
-    // TODO: "CompletionList", which allows AsyncGenerator as well as Promise.all semantics
-
-    const tasks = indexParts.map((e) => e.r!.read());
-    const columnData = await Promise.all(tasks);
-
-    return {
-      start: indexParts[0].at,
-      data: columnData,
-    };
   }
 }

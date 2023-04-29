@@ -4,7 +4,11 @@ import { SchemaLeafNode } from './schema.js';
 import { typedArrayView } from '../view.js';
 import { yieldDataRLE } from './process-rle.js';
 import { processData } from './process.js';
-import { ColumnDataResult } from '../../types.js';
+import { ColumnDataResult, Reader } from '../../types.js';
+import {
+  TCompactProtocolReaderPoll,
+  TCompactProtocolReaderPoll_OutOfData,
+} from '../thrift/reader.js';
 
 export type RawPage = {
   header: InstanceType<typeof parquet.PageHeader>;
@@ -12,6 +16,42 @@ export type RawPage = {
   begin: number;
   end: number;
 };
+
+/**
+ * Poll the reader at the given location for a {@link parquet.PageHeader}. Basically we don't know
+ * how long it's going to be but it's _likely_ to be pretty small (everything in the wild seems
+ * to be <64 bytes).
+ */
+export async function pollPageHeader(r: Reader, at: number) {
+  let header: InstanceType<typeof parquet.PageHeader> = new parquet.PageHeader();
+  let consumed = 0;
+
+  // This assumes an increasing number of bytes to try to consume the header
+  // It reads 128, 256, 512, 1024, 2048, 4196, before giving up.
+  // I've not found headers in the wild that are >=64 bytes.
+  for (let i = 7; i <= 12; ++i) {
+    const guess = await r(at, at + (1 << i));
+    const reader = new TCompactProtocolReaderPoll(guess);
+
+    try {
+      header.read(reader);
+    } catch (e) {
+      if (i !== 12 && e instanceof TCompactProtocolReaderPoll_OutOfData) {
+        header = new parquet.PageHeader();
+        continue;
+      }
+      throw e;
+    }
+    consumed = reader.consumed;
+    break;
+  }
+
+  if (header.compressed_page_size <= 0) {
+    throw new Error(`Could not find valid page while indexing`);
+  }
+
+  return { header, consumed };
+}
 
 /**
  * Return the number of rows in this page.
@@ -28,7 +68,9 @@ export function countForPageHeader(header: InstanceType<typeof parquet.PageHeade
   }
 
   if (header.dictionary_page_header) {
-    const dictHeader = header.dictionary_page_header as InstanceType<typeof parquet.DictionaryPageHeader>;
+    const dictHeader = header.dictionary_page_header as InstanceType<
+      typeof parquet.DictionaryPageHeader
+    >;
     return dictHeader.num_values as number;
   }
 

@@ -3,19 +3,21 @@ import { Encoding, PageType } from './const.js';
 import { decompress } from './decompress.js';
 import { parseFileMetadata, type FileMetadata } from './parts/file-metadata.js';
 import { typedArrayView } from './view.js';
-import { ColumnDataResult, ColumnDataResultLookup, ReadColumnPart, ReadDictPart, Reader } from '../types.js';
+import {
+  ColumnDataResult,
+  ColumnDataResultLookup,
+  ReadColumnPart,
+  ReadDictPart,
+  Reader,
+} from '../types.js';
 import {
   countForPageHeader,
   isDictLookup,
+  pollPageHeader,
   processTypeDataPage,
   processTypeDataPageV2,
 } from './parts/page.js';
 import { processDataPlain } from './parts/process.js';
-import {
-  TCompactProtocolReaderBuffer,
-  TCompactProtocolReaderPoll,
-  TCompactProtocolReaderPoll_OutOfData,
-} from './thrift/reader.js';
 
 export class ParquetReader {
   r: Reader;
@@ -55,7 +57,7 @@ export class ParquetReader {
   /**
    * Reads the dictionary part for the given column/group.
    *
-   * Unlike {@link #indexColumnGroup}, this reads all the dictionary value data right away.
+   * This reads just the header immediately, like {@link #indexColumnGroup}.
    */
   async dictForColumnGroup(columnNo: number, groupNo: number): Promise<ReadDictPart | null> {
     const column = this.metadata!.columns[columnNo];
@@ -64,14 +66,14 @@ export class ParquetReader {
       return null;
     }
 
-    const buffer = await this.r(chunk.begin, chunk.begin + chunk.dictionarySize);
-    const header = new parquet.PageHeader();
-    const reader = new TCompactProtocolReaderBuffer(buffer);
-    header.read(reader);
-
+    const { header, consumed } = await pollPageHeader(this.r, chunk.begin);
     const count = countForPageHeader(header);
-    const compressed = buffer.subarray(reader.at, reader.at + header.compressed_page_size);
+    const dataBegin = chunk.begin + consumed;
+    const dataEnd = dataBegin + header.compressed_page_size;
 
+    if (dataEnd !== chunk.begin + chunk.dictionarySize) {
+      throw new Error(`Got inconsistent dictionary dize`);
+    }
     if (header.type !== PageType.DICTIONARY_PAGE) {
       throw new Error(`Got invalid type for dict: ${header.type}`);
     }
@@ -83,15 +85,13 @@ export class ParquetReader {
       throw new Error(`Unexpected dictionary encoding: ${dictionaryHeader.encoding}`);
     }
 
-    return {
-      id: chunk.begin,
-      count,
-      async read(): Promise<ColumnDataResult> {
-        const buf = await decompress(compressed, chunk.codec);
-        return processDataPlain(buf, count, column.schema.type);
-      },
-      dict: true,
+    const read = async (): Promise<ColumnDataResult> => {
+      const compressed = await this.r(dataBegin, dataEnd);
+      const buf = await decompress(compressed, chunk.codec);
+      return processDataPlain(buf, count, column.schema.type);
     };
+
+    return { id: chunk.begin, count, read, dict: true };
   }
 
   /**
@@ -109,32 +109,7 @@ export class ParquetReader {
     let position = group.start;
     let offset = chunk.begin + chunk.dictionarySize;
     while (offset < chunk.end) {
-      let header: InstanceType<typeof parquet.PageHeader> = new parquet.PageHeader();
-      let consumed = 0;
-
-      // This assumes an increasing number of bytes to try to consume the header
-      // It reads 128, 256, 512, 1024, 2048, 4196, before giving up.
-      // I've not found headers in the wild that are >=64 bytes.
-      for (let i = 7; i <= 12; ++i) {
-        const guess = await this.r(offset, offset + (1 << i));
-        const reader = new TCompactProtocolReaderPoll(guess);
-
-        try {
-          header.read(reader);
-        } catch (e) {
-          if (i !== 12 && e instanceof TCompactProtocolReaderPoll_OutOfData) {
-            header = new parquet.PageHeader();
-            continue;
-          }
-          throw e;
-        }
-        consumed = reader.consumed;
-        break;
-      }
-
-      if (header.compressed_page_size <= 0) {
-        throw new Error(`Could not find valid page while indexing`);
-      }
+      const { header, consumed } = await pollPageHeader(this.r, offset);
 
       const start = position;
       const count = countForPageHeader(header);

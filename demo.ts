@@ -92,19 +92,21 @@ async function demo(p: string) {
     // await Promise.all(tasks);
     // console.timeEnd('index');
 
-    const i = new ParquetIndexer(reader, 2);
+    const i = new ParquetIndexer(reader, 2, (part) => {
+      console.debug('found new part', part.id, part.count);
+    });
     console.info('source data has rows', reader.rows(), 'groups', reader.groups);
 
-    console.time('read');
+    console.time('find');
     const arg = { start: 152_400, end: 234_450 };
-    const out = await i.readRange(arg);
-    console.timeEnd('read');
+    const out = await i.findRange(arg);
+    console.timeEnd('find');
 
     console.info('got data', arg, { start: out.start }, out.data);
 
-    console.time('read');
-    const out2 = await i.readRange(arg);
-    console.timeEnd('read');
+    console.time('find');
+    const out2 = await i.findRange(arg);
+    console.timeEnd('find');
 
     // const c = new AsyncGeneratorCache(reader.indexColumnGroup(0, 0));
 

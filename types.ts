@@ -88,4 +88,6 @@ export type ReadColumnPart = {
     }
 );
 
+export type ReadPart = ReadDictPart | ReadColumnPart;
+
 export type Reader = (start: number, end?: number) => Promise<Uint8Array>;
