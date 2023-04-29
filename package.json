@@ -7,6 +7,12 @@
 	},
 	"type": "module",
 	"scripts": {
-		"prepublishOnly": "esbuild src/index.ts --bundle --outfile=dist/index.js --format=esm --sourcemap"
+		"prepublishOnly": "esbuild src/index.ts --bundle --outfile=dist/index.js --format=esm --sourcemap --minify"
+	},
+	"exports": {
+		".": {
+			"default": "./dist/index.js",
+			"types": "./index.d.ts"
+		}
 	}
 }
