@@ -1,6 +1,5 @@
 import { ParquetReader } from './src/read.js';
-import { AsyncGeneratorCache } from 'thorish';
-import { ParquetIndexer } from './src/helper/caching.js';
+import { ParquetIndexer } from './src/indexer.js';
 import * as fs from 'node:fs';
 
 const fileSize = (raw: number | { size: number }) => {

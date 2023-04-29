@@ -1,5 +1,5 @@
-import type { ReadColumnPart, ReadDictPart, ReadPart } from '../../types.js';
-import type { ParquetReader } from '../read.js';
+import type { ReadColumnPart, ReadDictPart, ReadPart } from '../types.js';
+import type { ParquetReader } from './read.js';
 
 type IndexEntry = {
   at: number;
@@ -92,6 +92,8 @@ export class ParquetIndexer {
         this.listener(next);
 
         if (next.dict && !dictPartPromise) {
+          // We don't really need to index this _until_ the caller wants the data but it's simpler
+          // this way.
           dictPartPromise = this.r.dictForColumnGroup(this.columnNo, groupNo);
         }
       }
