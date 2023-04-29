@@ -28,7 +28,7 @@ export async function pollPageHeader(r: Reader, at: number) {
 
   // This assumes an increasing number of bytes to try to consume the header
   // It reads 128, 256, 512, 1024, 2048, 4196, before giving up.
-  // I've not found headers in the wild that are >=64 bytes.
+  // Most headers in the wild seem to be <=64, some are <=128.
   for (let i = 7; i <= 12; ++i) {
     const guess = await r(at, at + (1 << i));
     const reader = new TCompactProtocolReaderPoll(guess);

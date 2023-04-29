@@ -92,7 +92,7 @@ async function demo(p: string) {
     // console.timeEnd('index');
 
     const i = new ParquetIndexer(reader, 2, (part) => {
-      console.debug('found new part', part.id, part.count);
+//      console.debug('found new part', part.id, part.count);
     });
     console.info('source data has rows', reader.rows(), 'groups', reader.groups);
 
