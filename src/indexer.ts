@@ -124,13 +124,13 @@ export class ParquetIndexer {
   }: {
     start: number;
     end: number;
-  }): Promise<{ start: number; data: ReadColumnPart[] }> {
+  }): Promise<{ start: number; end: number, data: ReadColumnPart[], ids: number[] }> {
     const rows = this.r.rows();
     start = clamp(start, 0, rows);
     end = clamp(end, start, rows);
 
     if (end === start) {
-      return { start: 0, data: [] };
+      return { start: 0, end: 0, data: [], ids: [] };
     }
 
     for (;;) {
@@ -144,10 +144,15 @@ export class ParquetIndexer {
         continue;
       }
 
+      const lastPart = indexParts.at(-1);
+      const lastPartReader = lastPart?.r!;
+
       return {
         start: indexParts[0].at,
+        end: lastPartReader.start + lastPartReader.count,
         // TODO: just return IDs?
         data: indexParts.map(({ r }) => r!),
+        ids: indexParts.map(({ r }) => r!.id),
       };
     }
   }

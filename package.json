@@ -14,5 +14,6 @@
 			"default": "./dist/index.js",
 			"types": "./index.d.ts"
 		}
-	}
+	},
+	"name": "thor-dataread"
 }
