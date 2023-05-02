@@ -91,7 +91,7 @@ export class ParquetIndexer {
         });
         this.listener(next);
 
-        if (next.dict && !dictPartPromise) {
+        if ('lookup' in next && !dictPartPromise) {
           // We don't really need to index this _until_ the caller wants the data but it's simpler
           // this way.
           dictPartPromise = this.r.dictForColumnGroup(this.columnNo, groupNo);
