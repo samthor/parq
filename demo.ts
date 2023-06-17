@@ -1,54 +1,8 @@
 import { ParquetReader } from './src/read.js';
+import { fileSize } from './src/helper/format.js';
 import { ParquetIndexer } from './src/indexer.js';
 import * as fs from 'node:fs';
-
-const fileSize = (raw: number | { size: number }) => {
-  let size: number;
-  if (typeof raw === 'number') {
-    size = raw;
-  } else {
-    size = raw.size;
-  }
-
-  if (size > 1024 * 1024) {
-    return (size / (1024 * 1024)).toFixed(2) + 'mb';
-  } else if (size > 1024) {
-    return (size / 1024).toFixed(2) + 'kb';
-  } else {
-    return size + 'b';
-  }
-};
-
-const readerFor = (f: fs.promises.FileHandle) => {
-  return async (start: number, end?: number) => {
-    const stat = await f.stat();
-    const { size } = stat;
-
-    if (start < 0) {
-      start += size;
-    }
-    if (end === undefined) {
-      end = size;
-    } else if (end < 0) {
-      end += size;
-    }
-
-    // Have to create buffer otherwise Node only creates a 16k one.
-    const length = end - start;
-    const buffer = new Uint8Array(length);
-    const out = await f.read(buffer, 0, length, start);
-
-    if (out.bytesRead !== length) {
-      if (size - start === out.bytesRead) {
-        // This was an "overread" of the end of the file, ignore
-      } else {
-        throw new Error(`Could not read desired length=${length} bytesRead=${out.bytesRead}`);
-      }
-    }
-
-    return buffer;
-  };
-};
+import { readerFor } from './src/helper/node-reader.js';
 
 async function demo(p: string) {
   const f = await fs.promises.open(p);
@@ -91,13 +45,13 @@ async function demo(p: string) {
     // await Promise.all(tasks);
     // console.timeEnd('index');
 
-    const i = new ParquetIndexer(reader, 2, (part) => {
-//      console.debug('found new part', part.id, part.count);
+    const i = new ParquetIndexer(reader, 0, (part) => {
+      //      console.debug('found new part', part.id, part.count);
     });
     console.info('source data has rows', reader.rows(), 'groups', reader.groups);
 
     console.time('find');
-    const arg = { start: 152_400, end: 234_450 };
+    const arg = { start: 0, end: 100 };
     const out = await i.findRange(arg);
     console.timeEnd('find');
 

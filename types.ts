@@ -1,11 +1,25 @@
 export enum DataType {
-  INT8,
+  INT8 = 1,
   INT16,
   INT32,
   INT64,
   FLOAT,
   DOUBLE,
-  BYTE_ARRAY,
+
+  /**
+   * This is used for INT96, which can't be represented in any/most languages easily.
+   */
+  BIG_BYTE_ARRAY,
+
+  /**
+   * This is just bytes.
+   */
+  FIXED_LENGTH_BYTE_ARRAY,
+
+  /**
+   * This contains `[uint32 length + bytes, ...]`.
+   */
+  LENGTH_BYTE_ARRAY,
 }
 
 /**
@@ -55,7 +69,16 @@ export type ColumnDataResult =
       arr: Float64Array;
     }
   | {
-      type: DataType.BYTE_ARRAY;
+      type: DataType.BIG_BYTE_ARRAY;
+      size: number;
+      arr: Uint8Array;
+    }
+  | {
+      type: DataType.FIXED_LENGTH_BYTE_ARRAY;
+      arr: Uint8Array;
+    }
+  | {
+      type: DataType.LENGTH_BYTE_ARRAY;
       arr: Uint8Array;
     };
 

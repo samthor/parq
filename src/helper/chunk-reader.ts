@@ -1,22 +1,43 @@
+/**
+ * @fileoverview Experimental cache reader.
+ */
+
 import type { Reader } from '../../types.js';
 
-// TODO: This might help in some cases (web - avoid moving tons of data?) but eeeh
+const DEFAULT_CACHE_SIZE = 64;
+const DEFAULT_POWER = 24;
 
 export type Options = {
+
+  /**
+   * The power of the chunk size. The default is 24, which is 32mb.
+   */
   power?: number;
+
+  /**
+   * The reader to read bytes from the source.
+   */
   reader: Reader;
+
+  /**
+   * The underlying size of the file or source.
+   */
   size: number;
+
+  /**
+   * The number of chunks that can be held in memory.
+   */
+  cacheSize?: number;
 };
 
 /**
  * Returns a reader which internally caches whole chunks. Default is 32mb.
  */
 export function buildChunkReader(o: Options): Reader {
-  const { power = 24, reader, size } = o;
+  const { power = DEFAULT_POWER, reader, size, cacheSize = DEFAULT_CACHE_SIZE } = o;
   if (power > 30 || power < 12) {
     throw new RangeError(`Power probably out of range: ${power}`);
   }
-  const cacheSize = 100; // TODO: random number
   const chunkSize = 2 ** power;
 
   const chunks = new Map<number, Uint8Array>();

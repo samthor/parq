@@ -17,6 +17,9 @@ export type RawPage = {
   end: number;
 };
 
+const POLL_BY2_START = 7;
+const POLL_BY2_END = 12;
+
 /**
  * Poll the reader at the given location for a {@link parquet.PageHeader}. Basically we don't know
  * how long it's going to be but it's _likely_ to be pretty small (everything in the wild seems
@@ -29,14 +32,14 @@ export async function pollPageHeader(r: Reader, at: number) {
   // This assumes an increasing number of bytes to try to consume the header
   // It reads 128, 256, 512, 1024, 2048, 4196, before giving up.
   // Most headers in the wild seem to be <=64, some are <=128.
-  for (let i = 7; i <= 12; ++i) {
+  for (let i = POLL_BY2_START; i <= POLL_BY2_END; ++i) {
     const guess = await r(at, at + (1 << i));
     const reader = new TCompactProtocolReaderPoll(guess);
 
     try {
       header.read(reader);
     } catch (e) {
-      if (i !== 12 && e instanceof TCompactProtocolReaderPoll_OutOfData) {
+      if (i !== POLL_BY2_END && e instanceof TCompactProtocolReaderPoll_OutOfData) {
         header = new parquet.PageHeader();
         continue;
       }
@@ -93,6 +96,10 @@ export function isDictLookup(header: InstanceType<typeof parquet.PageHeader>): b
     return encodings.includes(dpHeader.encoding);
   }
 
+  if (header.type === PageType.DICTIONARY_PAGE) {
+    throw new Error(`isDictLookup cannot be true for DICTIONARY_PAGE`);
+  }
+
   throw new Error(`Could not handle type of PageHeader: ${header.type}`);
 }
 
@@ -124,7 +131,7 @@ export function processTypeDataPage(
     const offset = dv.getUint32(0, true);
     data = data.subarray(offset + 4);
 
-    // // TODO: We don't use these right now, so just skip them
+    // // TODO: We don't use these right now, so just skip decoding them
     // const rls = processData(
     //   rlEncoding,
     //   data,

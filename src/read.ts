@@ -27,7 +27,7 @@ export class ParquetReader {
     this.r = r;
   }
 
-  async columns(): Promise<Iterable<string>> {
+  async columns(): Promise<Array<string>> {
     return this.metadata!.columns.map((x) => x.schema.name);
   }
 
@@ -62,8 +62,14 @@ export class ParquetReader {
   async dictForColumnGroup(columnNo: number, groupNo: number): Promise<ReadDictPart | null> {
     const column = this.metadata!.columns[columnNo];
     const chunk = column.chunks[groupNo];
+
     if (chunk.dictionarySize === 0) {
-      return null;
+      // Check if there was actually a dictionary in the 1st position.
+      const { header, consumed } = await pollPageHeader(this.r, chunk.begin);
+      if (header.type !== PageType.DICTIONARY_PAGE) {
+        return null;
+      }
+      chunk.dictionarySize = consumed + header.compressed_page_size;
     }
 
     const { header, consumed } = await pollPageHeader(this.r, chunk.begin);
@@ -116,6 +122,21 @@ export class ParquetReader {
       const dataBegin = offset + consumed;
       const dataEnd = dataBegin + header.compressed_page_size;
 
+      // Some files don't have dictionarySize in the footer, so we have to catch it here.
+      if (header.type === PageType.DICTIONARY_PAGE) {
+        if (chunk.dictionarySize) {
+          throw new Error(`Found multiple dictionary pages`);
+        }
+        if (offset !== chunk.begin) {
+          throw new Error(`Dictionary is not the first part`);
+        }
+        chunk.dictionarySize = dataEnd - chunk.begin;
+        offset = dataEnd;
+        continue;
+      }
+
+      offset = dataEnd;
+
       const read = async (): Promise<ColumnDataResult> => {
         const compressed = await this.r(dataBegin, dataEnd);
         const buf = await decompress(compressed, chunk.codec);
@@ -150,8 +171,6 @@ export class ParquetReader {
       }
 
       position += count;
-      offset += consumed;
-      offset += header.compressed_page_size;
     }
   }
 

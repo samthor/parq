@@ -147,6 +147,10 @@ export class ParquetIndexer {
       const lastPart = indexParts.at(-1);
       const lastPartReader = lastPart?.r!;
 
+      if (!lastPartReader) {
+        throw new Error(`Can't read underlying data, no reader`);
+      }
+
       return {
         start: indexParts[0].at,
         end: lastPartReader.start + lastPartReader.count,

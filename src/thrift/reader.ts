@@ -19,8 +19,13 @@ export enum CompactProtocolType {
   CT_SET = 0x0a,
   CT_MAP = 0x0b,
   CT_STRUCT = 0x0c,
-  CT_UUID = 0x0d,
+  CT_UUID = 0x0d, // always 16 bytes long
 }
+
+export type FieldInfo = {
+  ftype: ThriftType;
+  fid: number;
+};
 
 export abstract class TCompactProtocolReader {
   private fieldId = 0;
@@ -64,9 +69,8 @@ export abstract class TCompactProtocolReader {
       case ThriftType.DOUBLE:
         this.readDouble();
         break;
-      case ThriftType.UTF8:
-      case ThriftType.STRING:
-        this.readBinary(); // skip decode step
+      case ThriftType.BYTES:
+        this.readBinary(); // skip decode step, we don't know if it's a string
         break;
       case ThriftType.STRUCT:
         this.readStructBegin();
@@ -98,6 +102,9 @@ export abstract class TCompactProtocolReader {
         this.readListEnd();
         break;
       }
+      case ThriftType.UUID:
+        this.readBytes(16);
+        break;
       default:
         throw new Error(`TODO skip: ${type}`);
     }
@@ -160,13 +167,13 @@ export abstract class TCompactProtocolReader {
   /**
    * Reads a struct or struct-like field.
    */
-  readFieldBegin() {
+  readFieldBegin(): FieldInfo {
     let fieldId = 0;
     const b = this.readByte();
     const protocolType = b & 0x0f;
 
     if (protocolType === CompactProtocolType.CT_STOP) {
-      return { fname: null, ftype: ThriftType.STOP, fid: 0 };
+      return { ftype: ThriftType.STOP, fid: 0 };
     }
 
     const modifier = (b & 0x000000f0) >>> 4;
@@ -186,7 +193,7 @@ export abstract class TCompactProtocolReader {
     }
 
     const thriftFieldType = this.getTType(protocolType);
-    return { fname: null, ftype: thriftFieldType, fid: fieldId };
+    return { ftype: thriftFieldType, fid: fieldId };
   }
 
   /**
@@ -225,11 +232,15 @@ export abstract class TCompactProtocolReader {
    */
   readDouble() {
     const bytes = this.readBytes(8);
-    const dv = new DataView(bytes);
+    const dv = new DataView(bytes.buffer, bytes.byteOffset);
     return dv.getFloat64(0, true);
   }
 
-  getTType(type: CompactProtocolType): ThriftType {
+  readUuid() {
+    return this.readBytes(16);
+  }
+
+  private getTType(type: CompactProtocolType): ThriftType {
     switch (type) {
       case CompactProtocolType.CT_STOP:
         return ThriftType.STOP;
@@ -247,7 +258,7 @@ export abstract class TCompactProtocolReader {
       case CompactProtocolType.CT_DOUBLE:
         return ThriftType.DOUBLE;
       case CompactProtocolType.CT_BINARY:
-        return ThriftType.STRING;
+        return ThriftType.BYTES;
       case CompactProtocolType.CT_LIST:
         return ThriftType.LIST;
       case CompactProtocolType.CT_SET:
@@ -257,7 +268,7 @@ export abstract class TCompactProtocolReader {
       case CompactProtocolType.CT_STRUCT:
         return ThriftType.STRUCT;
       case CompactProtocolType.CT_UUID:
-        throw new Error(`TODO: found UUID protocol type`);
+        return ThriftType.UUID; // always 16 bytes long
       default:
         throw new TypeError(`Unknown protocol type: ${type}`);
     }
@@ -320,7 +331,8 @@ export class TCompactProtocolReaderPoll_OutOfData extends Error {}
 /**
  * Reads a Thrift-compact encoded stream from a source which may be polled for additional bytes.
  *
- * TODO: This isn't async which basically makes it useless.
+ * If there are no more bytes available, throws {@link TCompactProtocolReaderPoll_OutOfData}. This
+ * is not async, so it's probably not possible to "get more" from a source inline.
  */
 export class TCompactProtocolReaderPoll extends TCompactProtocolReader {
   private more: (min: number) => Uint8Array;
@@ -354,7 +366,6 @@ export class TCompactProtocolReaderPoll extends TCompactProtocolReader {
     }
 
     const suffix = this.pending.subarray(this.at);
-    console.debug('requesting more: suffix=', suffix.length, 'min', min);
     min -= suffix.length;
 
     const update = this.more(min);

@@ -71,9 +71,15 @@ export function parseFileMetadata(buf: Uint8Array): FileMetadata {
         dictionarySize = metadata.data_page_offset - metadata.dictionary_page_offset;
       }
 
+      // Some files don't properly indicate 'end', so calculate from begin + size.
+      let end = rawChunk.file_offset;
+      if (end === begin) {
+        end = begin + metadata.total_compressed_size;
+      }
+
       const chunk: Chunk = {
         begin,
-        end: rawChunk.file_offset,
+        end,
         dictionarySize,
         codec: metadata.codec,
         columnNo: i,

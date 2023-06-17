@@ -63,8 +63,26 @@ export function processData(
  * Maps a plain section of Parquet data (i.e., values stored in regular bytes) to a matching JS
  * typed array view.
  */
-export function processDataPlain(arr: Uint8Array, count: number, type: ParquetType): ColumnDataResult {
+export function processDataPlain(
+  arr: Uint8Array,
+  count: number,
+  type: ParquetType,
+): ColumnDataResult {
   switch (type) {
+    case ParquetType.BOOLEAN: {
+      // The docs are super unclear; are these int32's, or is it bit-encoded.
+      throw new Error(
+        `TODO: found ParquetType.BOOLEAN, how long is this? count=${count} arr.length=${arr.length}`,
+      );
+    }
+
+    case ParquetType.FIXED_LEN_BYTE_ARRAY: {
+      return {
+        type: DataType.FIXED_LENGTH_BYTE_ARRAY,
+        arr,
+      };
+    }
+
     case ParquetType.INT32: {
       return {
         type: DataType.INT32,
@@ -76,6 +94,16 @@ export function processDataPlain(arr: Uint8Array, count: number, type: ParquetTy
       return {
         type: DataType.INT64,
         arr: new BigInt64Array(arr.buffer, arr.byteOffset, arr.byteLength >>> 3),
+      };
+    }
+
+    case ParquetType.INT96: {
+      // INT96 is deprecated: https://issues.apache.org/jira/browse/PARQUET-323
+      // It's used to store "nanosec timestamp" only.
+      return {
+        type: DataType.BIG_BYTE_ARRAY,
+        size: 12,
+        arr,
       };
     }
 
@@ -97,7 +125,7 @@ export function processDataPlain(arr: Uint8Array, count: number, type: ParquetTy
       // TODO: The data here is [uint32 length + bytes, ...]
       // It could be indexed here.
       return {
-        type: DataType.BYTE_ARRAY,
+        type: DataType.LENGTH_BYTE_ARRAY,
         arr,
       };
     }
