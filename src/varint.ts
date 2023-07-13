@@ -69,20 +69,23 @@ export function readVarint32(readByte: () => number): number {
     // also contains bits 33 through 35, which we're going to discard.
     return x >>> 0;
   }
-  // If we get here, we need to truncate coming bytes. However we need to make
-  // sure cursor place is correct.
-  if (
-    readByte() >= 128 &&
-    readByte() >= 128 &&
-    readByte() >= 128 &&
-    readByte() >= 128 &&
-    readByte() >= 128
-  ) {
-    // If we get here, the varint is too long.
-    throw new TypeError(`Too much data for int32`);
-  }
 
-  return x;
+  throw new TypeError(`Too much data for int32`);
+
+  // // If we get here, we need to truncate coming bytes. However we need to make
+  // // sure cursor place is correct.
+  // if (
+  //   readByte() >= 128 &&
+  //   readByte() >= 128 &&
+  //   readByte() >= 128 &&
+  //   readByte() >= 128 &&
+  //   readByte() >= 128
+  // ) {
+  //   // If we get here, the varint is too long.
+  //   throw new TypeError(`Too much data for int32`);
+  // }
+
+  // return x;
 }
 
 /**

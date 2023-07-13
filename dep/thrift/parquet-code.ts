@@ -102,8 +102,8 @@ export class StringType {
     input.skip(12);
     return this;
   }
-  static zeroInstance = new StringType();
 }
+const _StringType_zeroInstance = new StringType();
 
 // struct UUIDType
 export class UUIDType {
@@ -111,8 +111,8 @@ export class UUIDType {
     input.skip(12);
     return this;
   }
-  static zeroInstance = new UUIDType();
 }
+const _UUIDType_zeroInstance = new UUIDType();
 
 // struct MapType
 export class MapType {
@@ -120,8 +120,8 @@ export class MapType {
     input.skip(12);
     return this;
   }
-  static zeroInstance = new MapType();
 }
+const _MapType_zeroInstance = new MapType();
 
 // struct ListType
 export class ListType {
@@ -129,8 +129,8 @@ export class ListType {
     input.skip(12);
     return this;
   }
-  static zeroInstance = new ListType();
 }
+const _ListType_zeroInstance = new ListType();
 
 // struct EnumType
 export class EnumType {
@@ -138,8 +138,8 @@ export class EnumType {
     input.skip(12);
     return this;
   }
-  static zeroInstance = new EnumType();
 }
+const _EnumType_zeroInstance = new EnumType();
 
 // struct DateType
 export class DateType {
@@ -147,8 +147,8 @@ export class DateType {
     input.skip(12);
     return this;
   }
-  static zeroInstance = new DateType();
 }
+const _DateType_zeroInstance = new DateType();
 
 // struct NullType
 export class NullType {
@@ -156,8 +156,8 @@ export class NullType {
     input.skip(12);
     return this;
   }
-  static zeroInstance = new NullType();
 }
+const _NullType_zeroInstance = new NullType();
 
 // struct DecimalType
 export class DecimalType {
@@ -196,8 +196,8 @@ export class MilliSeconds {
     input.skip(12);
     return this;
   }
-  static zeroInstance = new MilliSeconds();
 }
+const _MilliSeconds_zeroInstance = new MilliSeconds();
 
 // struct MicroSeconds
 export class MicroSeconds {
@@ -205,8 +205,8 @@ export class MicroSeconds {
     input.skip(12);
     return this;
   }
-  static zeroInstance = new MicroSeconds();
 }
+const _MicroSeconds_zeroInstance = new MicroSeconds();
 
 // struct NanoSeconds
 export class NanoSeconds {
@@ -214,8 +214,8 @@ export class NanoSeconds {
     input.skip(12);
     return this;
   }
-  static zeroInstance = new NanoSeconds();
 }
+const _NanoSeconds_zeroInstance = new NanoSeconds();
 
 // union TimeUnit
 export class TimeUnit {
@@ -233,15 +233,15 @@ export class TimeUnit {
           return this;
         }
         case 3073: {
-          this.MILLIS = MilliSeconds.zeroInstance;
+          this.MILLIS = _MilliSeconds_zeroInstance.read(input);
           break;
         }
         case 3074: {
-          this.MICROS = MicroSeconds.zeroInstance;
+          this.MICROS = _MicroSeconds_zeroInstance.read(input);
           break;
         }
         case 3075: {
-          this.NANOS = NanoSeconds.zeroInstance;
+          this.NANOS = _NanoSeconds_zeroInstance.read(input);
           break;
         }
         default: {
@@ -352,8 +352,8 @@ export class JsonType {
     input.skip(12);
     return this;
   }
-  static zeroInstance = new JsonType();
 }
+const _JsonType_zeroInstance = new JsonType();
 
 // struct BsonType
 export class BsonType {
@@ -361,8 +361,8 @@ export class BsonType {
     input.skip(12);
     return this;
   }
-  static zeroInstance = new BsonType();
 }
+const _BsonType_zeroInstance = new BsonType();
 
 // union LogicalType
 export class LogicalType {
@@ -390,19 +390,19 @@ export class LogicalType {
           return this;
         }
         case 3073: {
-          this.STRING = StringType.zeroInstance;
+          this.STRING = _StringType_zeroInstance.read(input);
           break;
         }
         case 3074: {
-          this.MAP = MapType.zeroInstance;
+          this.MAP = _MapType_zeroInstance.read(input);
           break;
         }
         case 3075: {
-          this.LIST = ListType.zeroInstance;
+          this.LIST = _ListType_zeroInstance.read(input);
           break;
         }
         case 3076: {
-          this.ENUM = EnumType.zeroInstance;
+          this.ENUM = _EnumType_zeroInstance.read(input);
           break;
         }
         case 3077: {
@@ -410,7 +410,7 @@ export class LogicalType {
           break;
         }
         case 3078: {
-          this.DATE = DateType.zeroInstance;
+          this.DATE = _DateType_zeroInstance.read(input);
           break;
         }
         case 3079: {
@@ -426,19 +426,19 @@ export class LogicalType {
           break;
         }
         case 3083: {
-          this.UNKNOWN = NullType.zeroInstance;
+          this.UNKNOWN = _NullType_zeroInstance.read(input);
           break;
         }
         case 3084: {
-          this.JSON = JsonType.zeroInstance;
+          this.JSON = _JsonType_zeroInstance.read(input);
           break;
         }
         case 3085: {
-          this.BSON = BsonType.zeroInstance;
+          this.BSON = _BsonType_zeroInstance.read(input);
           break;
         }
         case 3086: {
-          this.UUID = UUIDType.zeroInstance;
+          this.UUID = _UUIDType_zeroInstance.read(input);
           break;
         }
         default: {
@@ -613,8 +613,8 @@ export class IndexPageHeader {
     input.skip(12);
     return this;
   }
-  static zeroInstance = new IndexPageHeader();
 }
+const _IndexPageHeader_zeroInstance = new IndexPageHeader();
 
 // struct DictionaryPageHeader
 export class DictionaryPageHeader {
@@ -719,8 +719,8 @@ export class SplitBlockAlgorithm {
     input.skip(12);
     return this;
   }
-  static zeroInstance = new SplitBlockAlgorithm();
 }
+const _SplitBlockAlgorithm_zeroInstance = new SplitBlockAlgorithm();
 
 // union BloomFilterAlgorithm
 export class BloomFilterAlgorithm {
@@ -736,7 +736,7 @@ export class BloomFilterAlgorithm {
           return this;
         }
         case 3073: {
-          this.BLOCK = SplitBlockAlgorithm.zeroInstance;
+          this.BLOCK = _SplitBlockAlgorithm_zeroInstance.read(input);
           break;
         }
         default: {
@@ -754,8 +754,8 @@ export class XxHash {
     input.skip(12);
     return this;
   }
-  static zeroInstance = new XxHash();
 }
+const _XxHash_zeroInstance = new XxHash();
 
 // union BloomFilterHash
 export class BloomFilterHash {
@@ -771,7 +771,7 @@ export class BloomFilterHash {
           return this;
         }
         case 3073: {
-          this.XXHASH = XxHash.zeroInstance;
+          this.XXHASH = _XxHash_zeroInstance.read(input);
           break;
         }
         default: {
@@ -789,8 +789,8 @@ export class Uncompressed {
     input.skip(12);
     return this;
   }
-  static zeroInstance = new Uncompressed();
 }
+const _Uncompressed_zeroInstance = new Uncompressed();
 
 // union BloomFilterCompression
 export class BloomFilterCompression {
@@ -806,7 +806,7 @@ export class BloomFilterCompression {
           return this;
         }
         case 3073: {
-          this.UNCOMPRESSED = Uncompressed.zeroInstance;
+          this.UNCOMPRESSED = _Uncompressed_zeroInstance.read(input);
           break;
         }
         default: {
@@ -900,7 +900,7 @@ export class PageHeader {
           break;
         }
         case 3078: {
-          this.index_page_header = IndexPageHeader.zeroInstance;
+          this.index_page_header = _IndexPageHeader_zeroInstance.read(input);
           break;
         }
         case 3079: {
@@ -1120,8 +1120,8 @@ export class EncryptionWithFooterKey {
     input.skip(12);
     return this;
   }
-  static zeroInstance = new EncryptionWithFooterKey();
 }
+const _EncryptionWithFooterKey_zeroInstance = new EncryptionWithFooterKey();
 
 // struct EncryptionWithColumnKey
 export class EncryptionWithColumnKey {
@@ -1169,7 +1169,7 @@ export class ColumnCryptoMetaData {
           return this;
         }
         case 3073: {
-          this.ENCRYPTION_WITH_FOOTER_KEY = EncryptionWithFooterKey.zeroInstance;
+          this.ENCRYPTION_WITH_FOOTER_KEY = _EncryptionWithFooterKey_zeroInstance.read(input);
           break;
         }
         case 3074: {
@@ -1313,8 +1313,8 @@ export class TypeDefinedOrder {
     input.skip(12);
     return this;
   }
-  static zeroInstance = new TypeDefinedOrder();
 }
+const _TypeDefinedOrder_zeroInstance = new TypeDefinedOrder();
 
 // union ColumnOrder
 export class ColumnOrder {
@@ -1330,7 +1330,7 @@ export class ColumnOrder {
           return this;
         }
         case 3073: {
-          this.TYPE_ORDER = TypeDefinedOrder.zeroInstance;
+          this.TYPE_ORDER = _TypeDefinedOrder_zeroInstance.read(input);
           break;
         }
         default: {
@@ -1649,5 +1649,3 @@ export class FileCryptoMetaData {
     }
   }
 }
-
-

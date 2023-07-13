@@ -100,16 +100,13 @@ export abstract class TCompactProtocolReader implements ThriftReader {
         this.readBinary(); // skip decode step, we don't know if it's a string
         break;
       case ThriftType.STRUCT:
-        this.readStructBegin();
         while (true) {
-          const r = this.readFieldBegin();
-          if (r.ftype === ThriftType.STOP) {
+          const ftype = this.readFieldForSkip();
+          if (ftype === ThriftType.STOP) {
             break;
           }
-          this.skip(r.ftype);
-          // fieldEnd is noop
+          this.skip(ftype);
         }
-        this.readStructEnd();
         break;
       case ThriftType.MAP: {
         const info = this.readMapBegin();
@@ -195,11 +192,29 @@ export abstract class TCompactProtocolReader implements ThriftReader {
   }
 
   /**
+   * Read a field starter purely for skipping it. Does not modify/care about fieldId.
+   */
+  private readFieldForSkip(): ThriftType {
+    const b = this.readByte();
+    if (!b) {
+      return ThriftType.STOP;
+    }
+ 
+    const protocolType: CompactProtocolType = (b & 0x0f);
+    if (protocolType === CompactProtocolType.CT_BOOLEAN_TRUE) {
+      this.pendingBool = true;
+    } else if (protocolType === CompactProtocolType.CT_BOOLEAN_FALSE) {
+      this.pendingBool = false;
+    }
+    return this.getTType(protocolType);
+  }
+
+  /**
    * Reads a struct or struct-like field.
    */
   readFieldBegin(): FieldInfo {
     const b = this.readByte();
-    const protocolType = b & 0x0f;
+    const protocolType: CompactProtocolType = (b & 0x0f);
 
     if (protocolType === CompactProtocolType.CT_STOP) {
       return { ftype: ThriftType.STOP, fid: 0 };
