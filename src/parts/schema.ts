@@ -74,7 +74,7 @@ function internalDecodeSchema(
   }
 
   if (!raw.num_children) {
-    if (!raw.type) {
+    if (raw.type === undefined) {
       throw new TypeError(`Got no type for non-leaf schema node`);
     }
     const node: SchemaLeafNode = {

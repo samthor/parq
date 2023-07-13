@@ -5,6 +5,8 @@
 import { readVarint32, readZigZagVarint32, readZigZagVarint53 } from '../varint.js';
 import { type ThriftReader, ThriftType } from '../../dep/thrift/compiler-deps.js';
 
+const dec = new TextDecoder();
+
 export enum CompactProtocolType {
   CT_STOP = 0x00,
   CT_BOOLEAN_TRUE = 0x01,
@@ -27,13 +29,30 @@ export type FieldInfo = {
   fid: number;
 };
 
+const ttypeMap = new Map([
+  [CompactProtocolType.CT_STOP, ThriftType.STOP],
+  [CompactProtocolType.CT_BOOLEAN_FALSE, ThriftType.BOOL],
+  [CompactProtocolType.CT_BOOLEAN_TRUE, ThriftType.BOOL],
+  [CompactProtocolType.CT_BYTE, ThriftType.BYTE],
+  [CompactProtocolType.CT_I16, ThriftType.I16],
+  [CompactProtocolType.CT_I32, ThriftType.I32],
+  [CompactProtocolType.CT_I64, ThriftType.I64],
+  [CompactProtocolType.CT_DOUBLE, ThriftType.DOUBLE],
+  [CompactProtocolType.CT_BINARY, ThriftType.BYTES],
+  [CompactProtocolType.CT_LIST, ThriftType.LIST],
+  [CompactProtocolType.CT_SET, ThriftType.SET],
+  [CompactProtocolType.CT_MAP, ThriftType.MAP],
+  [CompactProtocolType.CT_STRUCT, ThriftType.STRUCT],
+  [CompactProtocolType.CT_UUID, ThriftType.UUID],
+]);
+
 export abstract class TCompactProtocolReader implements ThriftReader {
   private fieldId = 0;
   private fieldIdStack: number[] = [];
 
   private pendingBool: boolean | undefined;
 
-  private readVarint32: () => number;
+  readVarint32: () => number;
   private readZigZagVarint32: () => number;
   private readZigZagVarint53: () => number;
 
@@ -60,7 +79,11 @@ export abstract class TCompactProtocolReader implements ThriftReader {
   skip(type: ThriftType) {
     switch (type) {
       case ThriftType.BOOL:
-        this.readBool();
+        if (this.pendingBool !== undefined) {
+          this.pendingBool = undefined;
+        } else {
+          this.readByte();
+        }
         break;
       case ThriftType.BYTE:
         this.readByte();
@@ -71,7 +94,7 @@ export abstract class TCompactProtocolReader implements ThriftReader {
         this.skipVarint();
         break;
       case ThriftType.DOUBLE:
-        this.readDouble();
+        this.readBytes(8);
         break;
       case ThriftType.BYTES:
         this.readBinary(); // skip decode step, we don't know if it's a string
@@ -84,7 +107,7 @@ export abstract class TCompactProtocolReader implements ThriftReader {
             break;
           }
           this.skip(r.ftype);
-          this.readFieldEnd();
+          // fieldEnd is noop
         }
         this.readStructEnd();
         break;
@@ -94,7 +117,7 @@ export abstract class TCompactProtocolReader implements ThriftReader {
           this.skip(info.ktype);
           this.skip(info.vtype);
         }
-        this.readMapEnd();
+        // mapEnd is noop
         break;
       }
       case ThriftType.SET:
@@ -103,7 +126,7 @@ export abstract class TCompactProtocolReader implements ThriftReader {
         for (let i = 0; i < info.size; ++i) {
           this.skip(info.etype);
         }
-        this.readListEnd();
+        // listEnd is noop
         break;
       }
       case ThriftType.UUID:
@@ -138,6 +161,9 @@ export abstract class TCompactProtocolReader implements ThriftReader {
     return this.readListBegin();
   }
 
+  /**
+   * Noop
+   */
   readSetEnd() {}
 
   readMapBegin() {
@@ -258,38 +284,11 @@ export abstract class TCompactProtocolReader implements ThriftReader {
   }
 
   private getTType(type: CompactProtocolType): ThriftType {
-    switch (type) {
-      case CompactProtocolType.CT_STOP:
-        return ThriftType.STOP;
-      case CompactProtocolType.CT_BOOLEAN_FALSE:
-      case CompactProtocolType.CT_BOOLEAN_TRUE:
-        return ThriftType.BOOL;
-      case CompactProtocolType.CT_BYTE:
-        return ThriftType.BYTE;
-      case CompactProtocolType.CT_I16:
-        return ThriftType.I16;
-      case CompactProtocolType.CT_I32:
-        return ThriftType.I32;
-      case CompactProtocolType.CT_I64:
-        return ThriftType.I64;
-      case CompactProtocolType.CT_DOUBLE:
-        return ThriftType.DOUBLE;
-      case CompactProtocolType.CT_BINARY:
-        return ThriftType.BYTES;
-      case CompactProtocolType.CT_LIST:
-        return ThriftType.LIST;
-      case CompactProtocolType.CT_SET:
-        return ThriftType.SET;
-      case CompactProtocolType.CT_MAP:
-        return ThriftType.MAP;
-      case CompactProtocolType.CT_STRUCT:
-        return ThriftType.STRUCT;
-      case CompactProtocolType.CT_UUID:
-        return ThriftType.UUID; // always 16 bytes long
-      default:
-        throw new TypeError(`Unknown protocol type: ${type}`);
+    const o = ttypeMap.get(type);
+    if (o === undefined) {
+      throw new TypeError(`Unknown protocol type: ${type}`);
     }
-    return ThriftType.STOP;
+    return o;
   }
 
   readBinary() {
@@ -299,7 +298,7 @@ export abstract class TCompactProtocolReader implements ThriftReader {
 
   readString() {
     const b = this.readBinary();
-    return new TextDecoder().decode(b);
+    return dec.decode(b);
   }
 }
 
@@ -317,18 +316,10 @@ export class TCompactProtocolReaderBuffer extends TCompactProtocolReader {
   }
 
   readByte(): number {
-    const out = this.buf[this.at];
-    ++this.at;
-    return out;
+    return this.buf[this.at++];
   }
 
   readBytes(size: number): Uint8Array {
-    if (size === 0) {
-      return new Uint8Array();
-    } else if (size < 0) {
-      throw new TypeError(`Got -ve binary size: ${size}`);
-    }
-
     const end = this.at + size;
     const out = this.buf.subarray(this.at, end);
     this.at = end;

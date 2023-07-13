@@ -89,7 +89,7 @@ export function readVarint32(readByte: () => number): number {
  * Returns a zigzag varint but probably throws at >53 bits (i.e., {@link Number.MAX_SAFE_INTEGER}).
  */
 export function readZigZagVarint53(readByte: () => number): number {
-  let { low, high } = readSplitVarint64(readByte);
+  let { low, high } = readFastSplitVarint64(readByte);
 
   // 64 bit math is:
   //   signmask = (zigzag & 1) ? -1 : 0;
@@ -126,11 +126,11 @@ export function decodeVarint32(source: Uint8Array, offset = 0): { value: number;
 
 function joinInt64(bitsLow: number, bitsHigh: number) {
   // If the high bit is set, do a manual two's complement conversion.
-  const sign = (bitsHigh & 0x80000000);
+  const sign = bitsHigh & 0x80000000;
   if (sign) {
     bitsLow = (~bitsLow + 1) >>> 0;
     bitsHigh = ~bitsHigh >>> 0;
-    if (bitsLow == 0) {
+    if (bitsLow === 0) {
       bitsHigh = (bitsHigh + 1) >>> 0;
     }
   }
@@ -143,6 +143,55 @@ function joinInt64(bitsLow: number, bitsHigh: number) {
   return sign ? -join : join;
 }
 
+function readFastSplitVarint64(readByte: () => number) {
+  let temp = readByte();
+  let lowBits = temp & 0x7f;
+  let highBits = 0;
+  if (temp < 128) {
+    return { low: lowBits >>> 0, high: 0 };
+  }
+
+  temp = readByte();
+  lowBits |= (temp & 0x7f) << 7;
+  if (temp < 128) {
+    return { low: lowBits >>> 0, high: 0 };
+  }
+
+  temp = readByte();
+  lowBits |= (temp & 0x7f) << 14;
+  if (temp < 128) {
+    return { low: lowBits >>> 0, high: 0 };
+  }
+
+  temp = readByte();
+  lowBits |= (temp & 0x7f) << 21;
+  if (temp < 128) {
+    return { low: lowBits >>> 0, high: 0 };
+  }
+
+  temp = readByte();
+  const valuePart = temp & 0x7f;
+  lowBits |= valuePart << 28;
+  highBits = valuePart >> 4;
+
+  for (let i = 0; temp >= 128 && i < 5; ++i) {
+    temp = readByte();
+    highBits |= (temp & 0x7f) << (i * 7 + 3);
+  }
+
+  // // Read bytes 6-10. This is in a branch as the merge code below is common.
+  // for (let i = 0; temp >= 128 && i < 5; ++i) {
+  //   temp = readByte();
+  //   highBits |= (temp & 0x7f) << (i * 7 + 3);
+  // }
+  if (temp >= 128) {
+    throw new Error(`bad varint64, >10 bytes encoded`);
+  }
+
+  return { low: lowBits >>> 0, high: highBits >>> 0 };
+}
+
+// TODO: we read a shedload of these, refactor?
 function readSplitVarint64(readByte: () => number) {
   let temp = 128;
   let lowBits = 0;
@@ -151,24 +200,24 @@ function readSplitVarint64(readByte: () => number) {
   // see it.
   for (let i = 0; i < 4 && temp >= 128; i++) {
     temp = readByte();
-    lowBits |= (temp & 0x7F) << (i * 7);
+    lowBits |= (temp & 0x7f) << (i * 7);
   }
   if (temp >= 128) {
     // Read the fifth byte, which straddles the low and high dwords.
     temp = readByte();
-    lowBits |= (temp & 0x7F) << 28;
-    highBits |= (temp & 0x7F) >> 4;
+    lowBits |= (temp & 0x7f) << 28;
+    highBits |= (temp & 0x7f) >> 4;
   }
   if (temp >= 128) {
     // Read the sixth through tenth byte.
     for (let i = 0; i < 5 && temp >= 128; i++) {
       temp = readByte();
-      highBits |= (temp & 0x7F) << (i * 7 + 3);
+      highBits |= (temp & 0x7f) << (i * 7 + 3);
     }
   }
   if (temp >= 128) {
-    throw new TypeError(`Invalid encoding`)
+    throw new TypeError(`Invalid encoding`);
   }
 
   return { low: lowBits >>> 0, high: highBits >>> 0 };
-};
+}

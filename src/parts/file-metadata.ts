@@ -34,6 +34,8 @@ export function parseFileMetadata(buf: Uint8Array): FileMetadata {
   const s = new pq.FileMetaData();
   s.read(reader); // TODO: for ~48mb metadata, this takes ~500ms - maybe that's fine?
 
+  console.debug(s);
+
   const schemaNode = decodeSchema(s.schema);
   const allColumns: FileMetadata['columns'] = schemaNode.columns.map((schema) => {
     return {

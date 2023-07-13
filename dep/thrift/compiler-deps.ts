@@ -56,17 +56,40 @@ export interface ThriftReader {
 
 export function readList(input: ThriftReader, type: ThriftType, reader: () => any) {
   const { etype, size } = input.readListBegin();
-  const out: any[] = [];
 
-  if (etype !== type) {
+  if (etype !== type || size === 0) {
     for (let i = 0; i < size; ++i) {
       input.skip(etype);
     }
-  } else {
-    for (let i = 0; i < size; ++i) {
-      out.push(reader());
-    }
+    input.readListEnd();
+    return [];
+  }
+
+  // prealloc array gives small speedup
+  const out = new Array(size);
+  for (let i = 0; i < size; ++i) {
+    out[i] = reader();
   }
   input.readListEnd();
+  return out;
+}
+
+export function readFastList(input: ThriftReader, type: ThriftType, reader: () => any) {
+  const { etype, size } = input.readListBegin();
+
+  if (etype !== type || size === 0) {
+    for (let i = 0; i < size; ++i) {
+      input.skip(etype);
+    }
+    // input.readListEnd();
+    return [];
+  }
+
+  // prealloc array gives small speedup
+  const out = new Array(size);
+  for (let i = 0; i < size; ++i) {
+    out[i] = reader();
+  }
+  // input.readListEnd();
   return out;
 }

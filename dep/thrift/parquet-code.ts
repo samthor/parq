@@ -1,4 +1,4 @@
-import { type ThriftReader, readList } from './compiler-deps.ts';
+import { type ThriftReader, readFastList } from './compiler-deps.ts';
 
 // enum Type
 export enum Type {
@@ -91,7 +91,7 @@ export class Statistics {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -102,6 +102,7 @@ export class StringType {
     input.skip(12);
     return this;
   }
+  static zeroInstance = new StringType();
 }
 
 // struct UUIDType
@@ -110,6 +111,7 @@ export class UUIDType {
     input.skip(12);
     return this;
   }
+  static zeroInstance = new UUIDType();
 }
 
 // struct MapType
@@ -118,6 +120,7 @@ export class MapType {
     input.skip(12);
     return this;
   }
+  static zeroInstance = new MapType();
 }
 
 // struct ListType
@@ -126,6 +129,7 @@ export class ListType {
     input.skip(12);
     return this;
   }
+  static zeroInstance = new ListType();
 }
 
 // struct EnumType
@@ -134,6 +138,7 @@ export class EnumType {
     input.skip(12);
     return this;
   }
+  static zeroInstance = new EnumType();
 }
 
 // struct DateType
@@ -142,6 +147,7 @@ export class DateType {
     input.skip(12);
     return this;
   }
+  static zeroInstance = new DateType();
 }
 
 // struct NullType
@@ -150,6 +156,7 @@ export class NullType {
     input.skip(12);
     return this;
   }
+  static zeroInstance = new NullType();
 }
 
 // struct DecimalType
@@ -178,7 +185,7 @@ export class DecimalType {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -189,6 +196,7 @@ export class MilliSeconds {
     input.skip(12);
     return this;
   }
+  static zeroInstance = new MilliSeconds();
 }
 
 // struct MicroSeconds
@@ -197,6 +205,7 @@ export class MicroSeconds {
     input.skip(12);
     return this;
   }
+  static zeroInstance = new MicroSeconds();
 }
 
 // struct NanoSeconds
@@ -205,6 +214,7 @@ export class NanoSeconds {
     input.skip(12);
     return this;
   }
+  static zeroInstance = new NanoSeconds();
 }
 
 // union TimeUnit
@@ -223,22 +233,22 @@ export class TimeUnit {
           return this;
         }
         case 3073: {
-          this.MILLIS = new MilliSeconds().read(input);
+          this.MILLIS = MilliSeconds.zeroInstance;
           break;
         }
         case 3074: {
-          this.MICROS = new MicroSeconds().read(input);
+          this.MICROS = MicroSeconds.zeroInstance;
           break;
         }
         case 3075: {
-          this.NANOS = new NanoSeconds().read(input);
+          this.NANOS = NanoSeconds.zeroInstance;
           break;
         }
         default: {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -269,7 +279,7 @@ export class TimestampType {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -300,7 +310,7 @@ export class TimeType {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -331,7 +341,7 @@ export class IntType {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -342,6 +352,7 @@ export class JsonType {
     input.skip(12);
     return this;
   }
+  static zeroInstance = new JsonType();
 }
 
 // struct BsonType
@@ -350,6 +361,7 @@ export class BsonType {
     input.skip(12);
     return this;
   }
+  static zeroInstance = new BsonType();
 }
 
 // union LogicalType
@@ -378,19 +390,19 @@ export class LogicalType {
           return this;
         }
         case 3073: {
-          this.STRING = new StringType().read(input);
+          this.STRING = StringType.zeroInstance;
           break;
         }
         case 3074: {
-          this.MAP = new MapType().read(input);
+          this.MAP = MapType.zeroInstance;
           break;
         }
         case 3075: {
-          this.LIST = new ListType().read(input);
+          this.LIST = ListType.zeroInstance;
           break;
         }
         case 3076: {
-          this.ENUM = new EnumType().read(input);
+          this.ENUM = EnumType.zeroInstance;
           break;
         }
         case 3077: {
@@ -398,7 +410,7 @@ export class LogicalType {
           break;
         }
         case 3078: {
-          this.DATE = new DateType().read(input);
+          this.DATE = DateType.zeroInstance;
           break;
         }
         case 3079: {
@@ -414,26 +426,26 @@ export class LogicalType {
           break;
         }
         case 3083: {
-          this.UNKNOWN = new NullType().read(input);
+          this.UNKNOWN = NullType.zeroInstance;
           break;
         }
         case 3084: {
-          this.JSON = new JsonType().read(input);
+          this.JSON = JsonType.zeroInstance;
           break;
         }
         case 3085: {
-          this.BSON = new BsonType().read(input);
+          this.BSON = BsonType.zeroInstance;
           break;
         }
         case 3086: {
-          this.UUID = new UUIDType().read(input);
+          this.UUID = UUIDType.zeroInstance;
           break;
         }
         default: {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -504,7 +516,7 @@ export class SchemaElement {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -590,7 +602,7 @@ export class DataPageHeader {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -601,6 +613,7 @@ export class IndexPageHeader {
     input.skip(12);
     return this;
   }
+  static zeroInstance = new IndexPageHeader();
 }
 
 // struct DictionaryPageHeader
@@ -634,7 +647,7 @@ export class DictionaryPageHeader {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -695,7 +708,7 @@ export class DataPageHeaderV2 {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -706,6 +719,7 @@ export class SplitBlockAlgorithm {
     input.skip(12);
     return this;
   }
+  static zeroInstance = new SplitBlockAlgorithm();
 }
 
 // union BloomFilterAlgorithm
@@ -722,14 +736,14 @@ export class BloomFilterAlgorithm {
           return this;
         }
         case 3073: {
-          this.BLOCK = new SplitBlockAlgorithm().read(input);
+          this.BLOCK = SplitBlockAlgorithm.zeroInstance;
           break;
         }
         default: {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -740,6 +754,7 @@ export class XxHash {
     input.skip(12);
     return this;
   }
+  static zeroInstance = new XxHash();
 }
 
 // union BloomFilterHash
@@ -756,14 +771,14 @@ export class BloomFilterHash {
           return this;
         }
         case 3073: {
-          this.XXHASH = new XxHash().read(input);
+          this.XXHASH = XxHash.zeroInstance;
           break;
         }
         default: {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -774,6 +789,7 @@ export class Uncompressed {
     input.skip(12);
     return this;
   }
+  static zeroInstance = new Uncompressed();
 }
 
 // union BloomFilterCompression
@@ -790,14 +806,14 @@ export class BloomFilterCompression {
           return this;
         }
         case 3073: {
-          this.UNCOMPRESSED = new Uncompressed().read(input);
+          this.UNCOMPRESSED = Uncompressed.zeroInstance;
           break;
         }
         default: {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -838,7 +854,7 @@ export class BloomFilterHeader {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -884,7 +900,7 @@ export class PageHeader {
           break;
         }
         case 3078: {
-          this.index_page_header = new IndexPageHeader().read(input);
+          this.index_page_header = IndexPageHeader.zeroInstance;
           break;
         }
         case 3079: {
@@ -899,7 +915,7 @@ export class PageHeader {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -930,7 +946,7 @@ export class KeyValue {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -966,7 +982,7 @@ export class SortingColumn {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -1002,7 +1018,7 @@ export class PageEncodingStats {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -1038,11 +1054,11 @@ export class ColumnMetaData {
           break;
         }
         case 3842: {
-          this.encodings = readList(input, 8, () => input.readI32());
+          this.encodings = readFastList(input, 8, () => input.readI32());
           break;
         }
         case 3843: {
-          this.path_in_schema = readList(input, 11, () => input.readString());
+          this.path_in_schema = readFastList(input, 11, () => input.readString());
           break;
         }
         case 2052: {
@@ -1062,7 +1078,7 @@ export class ColumnMetaData {
           break;
         }
         case 3848: {
-          this.key_value_metadata = readList(input, 12, () => new KeyValue().read(input));
+          this.key_value_metadata = readFastList(input, 12, () => new KeyValue().read(input));
           break;
         }
         case 2569: {
@@ -1082,7 +1098,7 @@ export class ColumnMetaData {
           break;
         }
         case 3853: {
-          this.encoding_stats = readList(input, 12, () => new PageEncodingStats().read(input));
+          this.encoding_stats = readFastList(input, 12, () => new PageEncodingStats().read(input));
           break;
         }
         case 2574: {
@@ -1093,7 +1109,7 @@ export class ColumnMetaData {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -1104,6 +1120,7 @@ export class EncryptionWithFooterKey {
     input.skip(12);
     return this;
   }
+  static zeroInstance = new EncryptionWithFooterKey();
 }
 
 // struct EncryptionWithColumnKey
@@ -1121,7 +1138,7 @@ export class EncryptionWithColumnKey {
           return this;
         }
         case 3841: {
-          this.path_in_schema = readList(input, 11, () => input.readString());
+          this.path_in_schema = readFastList(input, 11, () => input.readString());
           break;
         }
         case 2818: {
@@ -1132,7 +1149,7 @@ export class EncryptionWithColumnKey {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -1152,7 +1169,7 @@ export class ColumnCryptoMetaData {
           return this;
         }
         case 3073: {
-          this.ENCRYPTION_WITH_FOOTER_KEY = new EncryptionWithFooterKey().read(input);
+          this.ENCRYPTION_WITH_FOOTER_KEY = EncryptionWithFooterKey.zeroInstance;
           break;
         }
         case 3074: {
@@ -1163,7 +1180,7 @@ export class ColumnCryptoMetaData {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -1229,7 +1246,7 @@ export class ColumnChunk {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -1254,7 +1271,7 @@ export class RowGroup {
           return this;
         }
         case 3841: {
-          this.columns = readList(input, 12, () => new ColumnChunk().read(input));
+          this.columns = readFastList(input, 12, () => new ColumnChunk().read(input));
           break;
         }
         case 2562: {
@@ -1266,7 +1283,7 @@ export class RowGroup {
           break;
         }
         case 3844: {
-          this.sorting_columns = readList(input, 12, () => new SortingColumn().read(input));
+          this.sorting_columns = readFastList(input, 12, () => new SortingColumn().read(input));
           break;
         }
         case 2565: {
@@ -1285,7 +1302,7 @@ export class RowGroup {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -1296,6 +1313,7 @@ export class TypeDefinedOrder {
     input.skip(12);
     return this;
   }
+  static zeroInstance = new TypeDefinedOrder();
 }
 
 // union ColumnOrder
@@ -1312,14 +1330,14 @@ export class ColumnOrder {
           return this;
         }
         case 3073: {
-          this.TYPE_ORDER = new TypeDefinedOrder().read(input);
+          this.TYPE_ORDER = TypeDefinedOrder.zeroInstance;
           break;
         }
         default: {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -1355,7 +1373,7 @@ export class PageLocation {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -1374,14 +1392,14 @@ export class OffsetIndex {
           return this;
         }
         case 3841: {
-          this.page_locations = readList(input, 12, () => new PageLocation().read(input));
+          this.page_locations = readFastList(input, 12, () => new PageLocation().read(input));
           break;
         }
         default: {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -1404,15 +1422,15 @@ export class ColumnIndex {
           return this;
         }
         case 3841: {
-          this.null_pages = readList(input, 2, () => input.readBool());
+          this.null_pages = readFastList(input, 2, () => input.readBool());
           break;
         }
         case 3842: {
-          this.min_values = readList(input, 11, () => input.readBinary());
+          this.min_values = readFastList(input, 11, () => input.readBinary());
           break;
         }
         case 3843: {
-          this.max_values = readList(input, 11, () => input.readBinary());
+          this.max_values = readFastList(input, 11, () => input.readBinary());
           break;
         }
         case 2052: {
@@ -1420,14 +1438,14 @@ export class ColumnIndex {
           break;
         }
         case 3845: {
-          this.null_counts = readList(input, 10, () => input.readI64());
+          this.null_counts = readFastList(input, 10, () => input.readI64());
           break;
         }
         default: {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -1463,7 +1481,7 @@ export class AesGcmV1 {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -1499,7 +1517,7 @@ export class AesGcmCtrV1 {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -1530,7 +1548,7 @@ export class EncryptionAlgorithm {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -1561,7 +1579,7 @@ export class FileMetaData {
           break;
         }
         case 3842: {
-          this.schema = readList(input, 12, () => new SchemaElement().read(input));
+          this.schema = readFastList(input, 12, () => new SchemaElement().read(input));
           break;
         }
         case 2563: {
@@ -1569,11 +1587,11 @@ export class FileMetaData {
           break;
         }
         case 3844: {
-          this.row_groups = readList(input, 12, () => new RowGroup().read(input));
+          this.row_groups = readFastList(input, 12, () => new RowGroup().read(input));
           break;
         }
         case 3845: {
-          this.key_value_metadata = readList(input, 12, () => new KeyValue().read(input));
+          this.key_value_metadata = readFastList(input, 12, () => new KeyValue().read(input));
           break;
         }
         case 2822: {
@@ -1581,7 +1599,7 @@ export class FileMetaData {
           break;
         }
         case 3847: {
-          this.column_orders = readList(input, 12, () => new ColumnOrder().read(input));
+          this.column_orders = readFastList(input, 12, () => new ColumnOrder().read(input));
           break;
         }
         case 3080: {
@@ -1596,7 +1614,7 @@ export class FileMetaData {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
@@ -1627,7 +1645,9 @@ export class FileCryptoMetaData {
           input.skip(ftype);
         }
       }
-      input.readFieldEnd();
+      // skip readFieldEnd
     }
   }
 }
+
+
