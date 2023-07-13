@@ -1,5 +1,4 @@
-import type * as parquet from '../../dep/thrift/gen-nodejs/parquet.js';
-import { FieldRepetitionType, ParquetType, type CompressionCodec } from '../const.js';
+import * as pq from '../../dep/thrift/parquet-code.js';
 
 export type SchemaNode = {
   nested: true;
@@ -14,7 +13,7 @@ export type SchemaLeafNode = {
   name: string;
   repeated: boolean;
   optional: boolean;
-  type: ParquetType;
+  type: pq.Type;
 
   /**
    * Type length for {@link CompressionCodec.RLE}. Zero by default.
@@ -34,7 +33,7 @@ export type SchemaLeafNode = {
   raw: any;
 };
 
-export function decodeSchema(elements: InstanceType<typeof parquet.SchemaElement>[]) {
+export function decodeSchema(elements: pq.SchemaElement[]) {
   const columns: SchemaLeafNode[] = [];
   const { node, consumed } = internalDecodeSchema(elements, columns, { rl: 0, dl: 0 });
   if (consumed !== elements.length) {
@@ -46,7 +45,7 @@ export function decodeSchema(elements: InstanceType<typeof parquet.SchemaElement
 }
 
 function internalDecodeSchema(
-  elements: InstanceType<typeof parquet.SchemaElement>[],
+  elements: pq.SchemaElement[],
   columns: SchemaLeafNode[],
   { rl, dl }: { rl: number; dl: number },
 ): {
@@ -61,14 +60,14 @@ function internalDecodeSchema(
   let optional = false;
   let repeated = false;
 
-  switch (raw.repetition_type as FieldRepetitionType) {
-    case FieldRepetitionType.REQUIRED:
+  switch (raw.repetition_type) {
+    case pq.FieldRepetitionType.REQUIRED:
       break;
-    case FieldRepetitionType.OPTIONAL:
+    case pq.FieldRepetitionType.OPTIONAL:
       optional = true;
       ++dl;
       break;
-    case FieldRepetitionType.REPEATED:
+    case pq.FieldRepetitionType.REPEATED:
       repeated = true;
       ++rl;
       break;

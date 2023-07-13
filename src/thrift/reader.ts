@@ -3,7 +3,7 @@
  */
 
 import { readVarint32, readZigZagVarint32, readZigZagVarint53 } from '../varint.js';
-import { ThriftType } from './types.js';
+import { type ThriftReader, ThriftType } from '../../dep/thrift/compiler-deps.js';
 
 export enum CompactProtocolType {
   CT_STOP = 0x00,
@@ -27,7 +27,7 @@ export type FieldInfo = {
   fid: number;
 };
 
-export abstract class TCompactProtocolReader {
+export abstract class TCompactProtocolReader implements ThriftReader {
   private fieldId = 0;
   private fieldIdStack: number[] = [];
 
@@ -42,6 +42,10 @@ export abstract class TCompactProtocolReader {
     this.readVarint32 = readVarint32.bind(null, readByteBind);
     this.readZigZagVarint32 = readZigZagVarint32.bind(null, readByteBind);
     this.readZigZagVarint53 = readZigZagVarint53.bind(null, readByteBind);
+  }
+
+  readUUID(): Uint8Array {
+    return this.readBytes(16);
   }
 
   skipVarint() {
@@ -168,7 +172,6 @@ export abstract class TCompactProtocolReader {
    * Reads a struct or struct-like field.
    */
   readFieldBegin(): FieldInfo {
-    let fieldId = 0;
     const b = this.readByte();
     const protocolType = b & 0x0f;
 
@@ -179,12 +182,11 @@ export abstract class TCompactProtocolReader {
     const modifier = (b & 0x000000f0) >>> 4;
     if (modifier === 0) {
       // This is a new field ID.
-      fieldId = this.readI16();
+      this.fieldId = this.readI16();
     } else {
       // This is a delta encoded in the type byte.
-      fieldId = this.fieldId + modifier;
+      this.fieldId += modifier;
     }
-    this.fieldId = fieldId;
 
     if (protocolType === CompactProtocolType.CT_BOOLEAN_TRUE) {
       this.pendingBool = true;
@@ -193,7 +195,7 @@ export abstract class TCompactProtocolReader {
     }
 
     const thriftFieldType = this.getTType(protocolType);
-    return { ftype: thriftFieldType, fid: fieldId };
+    return { ftype: thriftFieldType, fid: this.fieldId };
   }
 
   /**
@@ -238,6 +240,21 @@ export abstract class TCompactProtocolReader {
 
   readUuid() {
     return this.readBytes(16);
+  }
+
+  readNumber(type: ThriftType): number {
+    switch (type) {
+      case ThriftType.BYTE:
+      case ThriftType.I16:
+      case ThriftType.I32:
+      case ThriftType.I64:
+        return this.readZigZagVarint53();
+
+      case ThriftType.DOUBLE:
+        return this.readDouble();
+    }
+
+    throw new Error(`not a number type: ${type}`);
   }
 
   private getTType(type: CompactProtocolType): ThriftType {

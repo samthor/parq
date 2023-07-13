@@ -1,5 +1,4 @@
-import * as parquet from '../dep/thrift/gen-nodejs/parquet.js';
-import { Encoding, PageType } from './const.js';
+import * as pq from '../dep/thrift/parquet-code.js';
 import { decompress } from './decompress.js';
 import { parseFileMetadata, type FileMetadata } from './parts/file-metadata.js';
 import { typedArrayView } from './view.js';
@@ -66,7 +65,7 @@ export class ParquetReader {
     if (chunk.dictionarySize === 0) {
       // Check if there was actually a dictionary in the 1st position.
       const { header, consumed } = await pollPageHeader(this.r, chunk.begin);
-      if (header.type !== PageType.DICTIONARY_PAGE) {
+      if (header.type !== pq.PageType.DICTIONARY_PAGE) {
         return null;
       }
       chunk.dictionarySize = consumed + header.compressed_page_size;
@@ -80,13 +79,11 @@ export class ParquetReader {
     if (dataEnd !== chunk.begin + chunk.dictionarySize) {
       throw new Error(`Got inconsistent dictionary dize`);
     }
-    if (header.type !== PageType.DICTIONARY_PAGE) {
+    if (header.type !== pq.PageType.DICTIONARY_PAGE) {
       throw new Error(`Got invalid type for dict: ${header.type}`);
     }
-    const dictionaryHeader = header.dictionary_page_header as InstanceType<
-      typeof parquet.DictionaryPageHeader
-    >;
-    if (dictionaryHeader.encoding !== Encoding.PLAIN_DICTIONARY) {
+    const dictionaryHeader = header.dictionary_page_header!;
+    if (dictionaryHeader.encoding !== pq.Encoding.PLAIN_DICTIONARY) {
       // TODO: Is this always true? This lets us just pass the data back as a buffer.
       throw new Error(`Unexpected dictionary encoding: ${dictionaryHeader.encoding}`);
     }
@@ -123,7 +120,7 @@ export class ParquetReader {
       const dataEnd = dataBegin + header.compressed_page_size;
 
       // Some files don't have dictionarySize in the footer, so we have to catch it here.
-      if (header.type === PageType.DICTIONARY_PAGE) {
+      if (header.type === pq.PageType.DICTIONARY_PAGE) {
         if (chunk.dictionarySize) {
           throw new Error(`Found multiple dictionary pages`);
         }
@@ -142,10 +139,10 @@ export class ParquetReader {
         const buf = await decompress(compressed, chunk.codec);
 
         switch (header.type) {
-          case PageType.DATA_PAGE:
+          case pq.PageType.DATA_PAGE:
             return processTypeDataPage(header, column.schema, buf);
 
-          case PageType.DATA_PAGE_V2:
+          case pq.PageType.DATA_PAGE_V2:
             return processTypeDataPageV2(header, column.schema, buf);
 
           default:

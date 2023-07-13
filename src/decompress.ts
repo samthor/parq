@@ -1,4 +1,4 @@
-import { CompressionCodec } from './const.js';
+import { CompressionCodec } from '../dep/thrift/parquet-code.js';
 import { decompress as snappyDecompress } from './snappy/decompress.js';
 
 /**

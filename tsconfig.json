@@ -14,6 +14,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": true,
+    "allowImportingTsExtensions": true,
   },
   "include": [
     // include the JS files you'd like to check here

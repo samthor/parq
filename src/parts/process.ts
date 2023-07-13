@@ -1,4 +1,4 @@
-import { Encoding, ParquetType } from '../const.js';
+import { Encoding, Type } from '../../dep/thrift/parquet-code.js';
 import { processDataRLE } from './process-rle.js';
 import { typedArrayView } from '../view.js';
 import { ColumnDataResult, DataType } from '../../types.js';
@@ -11,7 +11,7 @@ export function processData(
   encoding: Encoding,
   arr: Uint8Array,
   count: number,
-  type: ParquetType,
+  type: Type,
   typeLength: number,
 ): ColumnDataResult {
   switch (encoding) {
@@ -63,43 +63,40 @@ export function processData(
  * Maps a plain section of Parquet data (i.e., values stored in regular bytes) to a matching JS
  * typed array view.
  */
-export function processDataPlain(
-  arr: Uint8Array,
-  count: number,
-  type: ParquetType,
-): ColumnDataResult {
+export function processDataPlain(arr: Uint8Array, count: number, type: Type): ColumnDataResult {
   switch (type) {
-    case ParquetType.BOOLEAN: {
+    case Type.BOOLEAN: {
       // The docs are super unclear; are these int32's, or is it bit-encoded.
       throw new Error(
-        `TODO: found ParquetType.BOOLEAN, how long is this? count=${count} arr.length=${arr.length}`,
+        `TODO: found Type.BOOLEAN, how long is this? count=${count} arr.length=${arr.length}`,
       );
     }
 
-    case ParquetType.FIXED_LEN_BYTE_ARRAY: {
+    case Type.FIXED_LEN_BYTE_ARRAY: {
       return {
         type: DataType.FIXED_LENGTH_BYTE_ARRAY,
         arr,
       };
     }
 
-    case ParquetType.INT32: {
+    case Type.INT32: {
       return {
         type: DataType.INT32,
         arr: new Int32Array(arr.buffer, arr.byteOffset, arr.byteLength >>> 2),
       };
     }
 
-    case ParquetType.INT64: {
+    case Type.INT64: {
       return {
         type: DataType.INT64,
         arr: new BigInt64Array(arr.buffer, arr.byteOffset, arr.byteLength >>> 3),
       };
     }
 
-    case ParquetType.INT96: {
+    case Type.INT96: {
       // INT96 is deprecated: https://issues.apache.org/jira/browse/PARQUET-323
       // It's used to store "nanosec timestamp" only.
+      // This return type is a bit funky for that reason.
       return {
         type: DataType.BIG_BYTE_ARRAY,
         size: 12,
@@ -107,21 +104,21 @@ export function processDataPlain(
       };
     }
 
-    case ParquetType.FLOAT: {
+    case Type.FLOAT: {
       return {
         type: DataType.FLOAT,
         arr: new Float32Array(arr.buffer, arr.byteOffset, arr.byteLength >>> 2),
       };
     }
 
-    case ParquetType.DOUBLE: {
+    case Type.DOUBLE: {
       return {
         type: DataType.DOUBLE,
         arr: new Float64Array(arr.buffer, arr.byteOffset, arr.byteLength >>> 3),
       };
     }
 
-    case ParquetType.BYTE_ARRAY: {
+    case Type.BYTE_ARRAY: {
       // TODO: The data here is [uint32 length + bytes, ...]
       // It could be indexed here.
       return {

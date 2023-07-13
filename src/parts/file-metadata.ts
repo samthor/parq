@@ -1,13 +1,12 @@
 import { TCompactProtocolReaderBuffer } from '../thrift/reader.js';
-import * as parquet from '../../dep/thrift/gen-nodejs/parquet.js';
+import * as pq from '../../dep/thrift/parquet-code.js';
 import { decodeSchema, type SchemaLeafNode } from './schema.js';
-import type { CompressionCodec } from '../const.js';
 
 export type Chunk = {
   begin: number;
   end: number;
   dictionarySize: number;
-  codec: CompressionCodec;
+  codec: pq.CompressionCodec;
   columnNo: number;
 };
 
@@ -32,7 +31,7 @@ export type FileMetadata = {
 export function parseFileMetadata(buf: Uint8Array): FileMetadata {
   const reader = new TCompactProtocolReaderBuffer(buf);
 
-  const s = new parquet.FileMetaData();
+  const s = new pq.FileMetaData();
   s.read(reader); // TODO: for ~48mb metadata, this takes ~500ms - maybe that's fine?
 
   const schemaNode = decodeSchema(s.schema);
@@ -45,7 +44,7 @@ export function parseFileMetadata(buf: Uint8Array): FileMetadata {
 
   // Most small (~mb) Parquet files just have a single group.
   let currentRow = 0;
-  const groups = (s.row_groups as InstanceType<typeof parquet.RowGroup>[]).map((group) => {
+  const groups = s.row_groups.map((group) => {
     if (typeof group.num_rows !== 'number') {
       throw new Error(`Got non-row'ed group: ${group.num_rows}`);
     }
@@ -53,11 +52,11 @@ export function parseFileMetadata(buf: Uint8Array): FileMetadata {
     const start = currentRow;
     const end = (currentRow += group.num_rows);
 
-    const rawColumnChunks = group.columns as InstanceType<typeof parquet.ColumnChunk>[];
+    const rawColumnChunks = group.columns;
 
     const columnChunks = allColumns.map((o, i) => {
       const rawChunk = rawColumnChunks[i];
-      const metadata = rawChunk.meta_data as InstanceType<typeof parquet.ColumnMetaData>;
+      const metadata = rawChunk.meta_data!;
 
       if (metadata.type !== o.schema.type) {
         throw new TypeError(`Got chunk type=${metadata.type}, schema type=${o.schema.type}`);
