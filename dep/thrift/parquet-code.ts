@@ -1,4 +1,4 @@
-import { type ThriftReader, readFastList } from './compiler-deps.ts';
+import { type ThriftReader, readList } from './compiler-deps.ts';
 
 // enum Type
 export enum Type {
@@ -56,39 +56,38 @@ export class Statistics {
   read(input: ThriftReader): Statistics {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 2817: {
+        case 267: {
           this.max = input.readBinary();
           break;
         }
-        case 2818: {
+        case 523: {
           this.min = input.readBinary();
           break;
         }
-        case 2563: {
+        case 778: {
           this.null_count = input.readI64();
           break;
         }
-        case 2564: {
+        case 1034: {
           this.distinct_count = input.readI64();
           break;
         }
-        case 2821: {
+        case 1291: {
           this.max_value = input.readBinary();
           break;
         }
-        case 2822: {
+        case 1547: {
           this.min_value = input.readBinary();
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -166,23 +165,22 @@ export class DecimalType {
   read(input: ThriftReader): DecimalType {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 2049: {
+        case 264: {
           this.scale = input.readI32();
           break;
         }
-        case 2050: {
+        case 520: {
           this.precision = input.readI32();
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -225,27 +223,26 @@ export class TimeUnit {
   read(input: ThriftReader): TimeUnit {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 3073: {
+        case 268: {
           this.MILLIS = _MilliSeconds_zeroInstance.read(input);
           break;
         }
-        case 3074: {
+        case 524: {
           this.MICROS = _MicroSeconds_zeroInstance.read(input);
           break;
         }
-        case 3075: {
+        case 780: {
           this.NANOS = _NanoSeconds_zeroInstance.read(input);
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -260,23 +257,22 @@ export class TimestampType {
   read(input: ThriftReader): TimestampType {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 513: {
+        case 258: {
           this.isAdjustedToUTC = input.readBool();
           break;
         }
-        case 3074: {
+        case 524: {
           this.unit = new TimeUnit().read(input);
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -291,23 +287,22 @@ export class TimeType {
   read(input: ThriftReader): TimeType {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 513: {
+        case 258: {
           this.isAdjustedToUTC = input.readBool();
           break;
         }
-        case 3074: {
+        case 524: {
           this.unit = new TimeUnit().read(input);
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -322,14 +317,13 @@ export class IntType {
   read(input: ThriftReader): IntType {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 769: {
+        case 259: {
           this.bitWidth = input.readByte();
           break;
         }
@@ -338,7 +332,7 @@ export class IntType {
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -382,50 +376,49 @@ export class LogicalType {
   read(input: ThriftReader): LogicalType {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 3073: {
+        case 268: {
           this.STRING = _StringType_zeroInstance.read(input);
           break;
         }
-        case 3074: {
+        case 524: {
           this.MAP = _MapType_zeroInstance.read(input);
           break;
         }
-        case 3075: {
+        case 780: {
           this.LIST = _ListType_zeroInstance.read(input);
           break;
         }
-        case 3076: {
+        case 1036: {
           this.ENUM = _EnumType_zeroInstance.read(input);
           break;
         }
-        case 3077: {
+        case 1292: {
           this.DECIMAL = new DecimalType().read(input);
           break;
         }
-        case 3078: {
+        case 1548: {
           this.DATE = _DateType_zeroInstance.read(input);
           break;
         }
-        case 3079: {
+        case 1804: {
           this.TIME = new TimeType().read(input);
           break;
         }
-        case 3080: {
+        case 2060: {
           this.TIMESTAMP = new TimestampType().read(input);
           break;
         }
-        case 3082: {
+        case 2572: {
           this.INTEGER = new IntType().read(input);
           break;
         }
-        case 3083: {
+        case 2828: {
           this.UNKNOWN = _NullType_zeroInstance.read(input);
           break;
         }
@@ -433,16 +426,16 @@ export class LogicalType {
           this.JSON = _JsonType_zeroInstance.read(input);
           break;
         }
-        case 3085: {
+        case 3340: {
           this.BSON = _BsonType_zeroInstance.read(input);
           break;
         }
-        case 3086: {
+        case 3596: {
           this.UUID = _UUIDType_zeroInstance.read(input);
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -465,38 +458,37 @@ export class SchemaElement {
   read(input: ThriftReader): SchemaElement {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 2049: {
+        case 264: {
           this.type = input.readI32();
           break;
         }
-        case 2050: {
+        case 520: {
           this.type_length = input.readI32();
           break;
         }
-        case 2051: {
+        case 776: {
           this.repetition_type = input.readI32();
           break;
         }
-        case 2820: {
+        case 1035: {
           this.name = input.readString();
           break;
         }
-        case 2053: {
+        case 1288: {
           this.num_children = input.readI32();
           break;
         }
-        case 2054: {
+        case 1544: {
           this.converted_type = input.readI32();
           break;
         }
-        case 2055: {
+        case 1800: {
           this.scale = input.readI32();
           break;
         }
@@ -504,16 +496,16 @@ export class SchemaElement {
           this.precision = input.readI32();
           break;
         }
-        case 2057: {
+        case 2312: {
           this.field_id = input.readI32();
           break;
         }
-        case 3082: {
+        case 2572: {
           this.logicalType = new LogicalType().read(input);
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -571,35 +563,34 @@ export class DataPageHeader {
   read(input: ThriftReader): DataPageHeader {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 2049: {
+        case 264: {
           this.num_values = input.readI32();
           break;
         }
-        case 2050: {
+        case 520: {
           this.encoding = input.readI32();
           break;
         }
-        case 2051: {
+        case 776: {
           this.definition_level_encoding = input.readI32();
           break;
         }
-        case 2052: {
+        case 1032: {
           this.repetition_level_encoding = input.readI32();
           break;
         }
-        case 3077: {
+        case 1292: {
           this.statistics = new Statistics().read(input);
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -624,27 +615,26 @@ export class DictionaryPageHeader {
   read(input: ThriftReader): DictionaryPageHeader {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 2049: {
+        case 264: {
           this.num_values = input.readI32();
           break;
         }
-        case 2050: {
+        case 520: {
           this.encoding = input.readI32();
           break;
         }
-        case 515: {
+        case 770: {
           this.is_sorted = input.readBool();
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -665,47 +655,46 @@ export class DataPageHeaderV2 {
   read(input: ThriftReader): DataPageHeaderV2 {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 2049: {
+        case 264: {
           this.num_values = input.readI32();
           break;
         }
-        case 2050: {
+        case 520: {
           this.num_nulls = input.readI32();
           break;
         }
-        case 2051: {
+        case 776: {
           this.num_rows = input.readI32();
           break;
         }
-        case 2052: {
+        case 1032: {
           this.encoding = input.readI32();
           break;
         }
-        case 2053: {
+        case 1288: {
           this.definition_levels_byte_length = input.readI32();
           break;
         }
-        case 2054: {
+        case 1544: {
           this.repetition_levels_byte_length = input.readI32();
           break;
         }
-        case 519: {
+        case 1794: {
           this.is_compressed = input.readBool();
           break;
         }
-        case 3080: {
+        case 2060: {
           this.statistics = new Statistics().read(input);
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -728,19 +717,18 @@ export class BloomFilterAlgorithm {
   read(input: ThriftReader): BloomFilterAlgorithm {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 3073: {
+        case 268: {
           this.BLOCK = _SplitBlockAlgorithm_zeroInstance.read(input);
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -763,19 +751,18 @@ export class BloomFilterHash {
   read(input: ThriftReader): BloomFilterHash {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 3073: {
+        case 268: {
           this.XXHASH = _XxHash_zeroInstance.read(input);
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -798,19 +785,18 @@ export class BloomFilterCompression {
   read(input: ThriftReader): BloomFilterCompression {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 3073: {
+        case 268: {
           this.UNCOMPRESSED = _Uncompressed_zeroInstance.read(input);
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -827,31 +813,30 @@ export class BloomFilterHeader {
   read(input: ThriftReader): BloomFilterHeader {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 2049: {
+        case 264: {
           this.numBytes = input.readI32();
           break;
         }
-        case 3074: {
+        case 524: {
           this.algorithm = new BloomFilterAlgorithm().read(input);
           break;
         }
-        case 3075: {
+        case 780: {
           this.hash = new BloomFilterHash().read(input);
           break;
         }
-        case 3076: {
+        case 1036: {
           this.compression = new BloomFilterCompression().read(input);
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -872,47 +857,46 @@ export class PageHeader {
   read(input: ThriftReader): PageHeader {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 2049: {
+        case 264: {
           this.type = input.readI32();
           break;
         }
-        case 2050: {
+        case 520: {
           this.uncompressed_page_size = input.readI32();
           break;
         }
-        case 2051: {
+        case 776: {
           this.compressed_page_size = input.readI32();
           break;
         }
-        case 2052: {
+        case 1032: {
           this.crc = input.readI32();
           break;
         }
-        case 3077: {
+        case 1292: {
           this.data_page_header = new DataPageHeader().read(input);
           break;
         }
-        case 3078: {
+        case 1548: {
           this.index_page_header = _IndexPageHeader_zeroInstance.read(input);
           break;
         }
-        case 3079: {
+        case 1804: {
           this.dictionary_page_header = new DictionaryPageHeader().read(input);
           break;
         }
-        case 3080: {
+        case 2060: {
           this.data_page_header_v2 = new DataPageHeaderV2().read(input);
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -927,23 +911,22 @@ export class KeyValue {
   read(input: ThriftReader): KeyValue {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 2817: {
+        case 267: {
           this.key = input.readString();
           break;
         }
-        case 2818: {
+        case 523: {
           this.value = input.readString();
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -959,14 +942,13 @@ export class SortingColumn {
   read(input: ThriftReader): SortingColumn {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 2049: {
+        case 264: {
           this.column_idx = input.readI32();
           break;
         }
@@ -974,12 +956,12 @@ export class SortingColumn {
           this.descending = input.readBool();
           break;
         }
-        case 515: {
+        case 770: {
           this.nulls_first = input.readBool();
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -995,27 +977,26 @@ export class PageEncodingStats {
   read(input: ThriftReader): PageEncodingStats {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 2049: {
+        case 264: {
           this.page_type = input.readI32();
           break;
         }
-        case 2050: {
+        case 520: {
           this.encoding = input.readI32();
           break;
         }
-        case 2051: {
+        case 776: {
           this.count = input.readI32();
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -1042,46 +1023,45 @@ export class ColumnMetaData {
   read(input: ThriftReader): ColumnMetaData {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 2049: {
+        case 264: {
           this.type = input.readI32();
           break;
         }
-        case 3842: {
-          this.encodings = readFastList(input, 8, () => input.readI32());
+        case 527: {
+          this.encodings = readList(input, 8, () => input.readI32());
           break;
         }
-        case 3843: {
-          this.path_in_schema = readFastList(input, 11, () => input.readString());
+        case 783: {
+          this.path_in_schema = readList(input, 11, () => input.readString());
           break;
         }
-        case 2052: {
+        case 1032: {
           this.codec = input.readI32();
           break;
         }
-        case 2565: {
+        case 1290: {
           this.num_values = input.readI64();
           break;
         }
-        case 2566: {
+        case 1546: {
           this.total_uncompressed_size = input.readI64();
           break;
         }
-        case 2567: {
+        case 1802: {
           this.total_compressed_size = input.readI64();
           break;
         }
-        case 3848: {
-          this.key_value_metadata = readFastList(input, 12, () => new KeyValue().read(input));
+        case 2063: {
+          this.key_value_metadata = readList(input, 12, () => new KeyValue().read(input));
           break;
         }
-        case 2569: {
+        case 2314: {
           this.data_page_offset = input.readI64();
           break;
         }
@@ -1089,7 +1069,7 @@ export class ColumnMetaData {
           this.index_page_offset = input.readI64();
           break;
         }
-        case 2571: {
+        case 2826: {
           this.dictionary_page_offset = input.readI64();
           break;
         }
@@ -1097,16 +1077,16 @@ export class ColumnMetaData {
           this.statistics = new Statistics().read(input);
           break;
         }
-        case 3853: {
-          this.encoding_stats = readFastList(input, 12, () => new PageEncodingStats().read(input));
+        case 3343: {
+          this.encoding_stats = readList(input, 12, () => new PageEncodingStats().read(input));
           break;
         }
-        case 2574: {
+        case 3594: {
           this.bloom_filter_offset = input.readI64();
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -1130,23 +1110,22 @@ export class EncryptionWithColumnKey {
   read(input: ThriftReader): EncryptionWithColumnKey {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 3841: {
-          this.path_in_schema = readFastList(input, 11, () => input.readString());
+        case 271: {
+          this.path_in_schema = readList(input, 11, () => input.readString());
           break;
         }
-        case 2818: {
+        case 523: {
           this.key_metadata = input.readBinary();
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -1161,23 +1140,22 @@ export class ColumnCryptoMetaData {
   read(input: ThriftReader): ColumnCryptoMetaData {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 3073: {
+        case 268: {
           this.ENCRYPTION_WITH_FOOTER_KEY = _EncryptionWithFooterKey_zeroInstance.read(input);
           break;
         }
-        case 3074: {
+        case 524: {
           this.ENCRYPTION_WITH_COLUMN_KEY = new EncryptionWithColumnKey().read(input);
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -1199,51 +1177,50 @@ export class ColumnChunk {
   read(input: ThriftReader): ColumnChunk {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 2817: {
+        case 267: {
           this.file_path = input.readString();
           break;
         }
-        case 2562: {
+        case 522: {
           this.file_offset = input.readI64();
           break;
         }
-        case 3075: {
+        case 780: {
           this.meta_data = new ColumnMetaData().read(input);
           break;
         }
-        case 2564: {
+        case 1034: {
           this.offset_index_offset = input.readI64();
           break;
         }
-        case 2053: {
+        case 1288: {
           this.offset_index_length = input.readI32();
           break;
         }
-        case 2566: {
+        case 1546: {
           this.column_index_offset = input.readI64();
           break;
         }
-        case 2055: {
+        case 1800: {
           this.column_index_length = input.readI32();
           break;
         }
-        case 3080: {
+        case 2060: {
           this.crypto_metadata = new ColumnCryptoMetaData().read(input);
           break;
         }
-        case 2825: {
+        case 2315: {
           this.encrypted_column_metadata = input.readBinary();
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -1263,43 +1240,42 @@ export class RowGroup {
   read(input: ThriftReader): RowGroup {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 3841: {
-          this.columns = readFastList(input, 12, () => new ColumnChunk().read(input));
+        case 271: {
+          this.columns = readList(input, 12, () => new ColumnChunk().read(input));
           break;
         }
-        case 2562: {
+        case 522: {
           this.total_byte_size = input.readI64();
           break;
         }
-        case 2563: {
+        case 778: {
           this.num_rows = input.readI64();
           break;
         }
-        case 3844: {
-          this.sorting_columns = readFastList(input, 12, () => new SortingColumn().read(input));
+        case 1039: {
+          this.sorting_columns = readList(input, 12, () => new SortingColumn().read(input));
           break;
         }
-        case 2565: {
+        case 1290: {
           this.file_offset = input.readI64();
           break;
         }
-        case 2566: {
+        case 1546: {
           this.total_compressed_size = input.readI64();
           break;
         }
-        case 1543: {
+        case 1798: {
           this.ordinal = input.readI16();
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -1322,19 +1298,18 @@ export class ColumnOrder {
   read(input: ThriftReader): ColumnOrder {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 3073: {
+        case 268: {
           this.TYPE_ORDER = _TypeDefinedOrder_zeroInstance.read(input);
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -1350,27 +1325,26 @@ export class PageLocation {
   read(input: ThriftReader): PageLocation {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 2561: {
+        case 266: {
           this.offset = input.readI64();
           break;
         }
-        case 2050: {
+        case 520: {
           this.compressed_page_size = input.readI32();
           break;
         }
-        case 2563: {
+        case 778: {
           this.first_row_index = input.readI64();
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -1384,19 +1358,18 @@ export class OffsetIndex {
   read(input: ThriftReader): OffsetIndex {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 3841: {
-          this.page_locations = readFastList(input, 12, () => new PageLocation().read(input));
+        case 271: {
+          this.page_locations = readList(input, 12, () => new PageLocation().read(input));
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -1414,35 +1387,34 @@ export class ColumnIndex {
   read(input: ThriftReader): ColumnIndex {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 3841: {
-          this.null_pages = readFastList(input, 2, () => input.readBool());
+        case 271: {
+          this.null_pages = readList(input, 2, () => input.readBool());
           break;
         }
-        case 3842: {
-          this.min_values = readFastList(input, 11, () => input.readBinary());
+        case 527: {
+          this.min_values = readList(input, 11, () => input.readBinary());
           break;
         }
-        case 3843: {
-          this.max_values = readFastList(input, 11, () => input.readBinary());
+        case 783: {
+          this.max_values = readList(input, 11, () => input.readBinary());
           break;
         }
-        case 2052: {
+        case 1032: {
           this.boundary_order = input.readI32();
           break;
         }
-        case 3845: {
-          this.null_counts = readFastList(input, 10, () => input.readI64());
+        case 1295: {
+          this.null_counts = readList(input, 10, () => input.readI64());
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -1458,27 +1430,26 @@ export class AesGcmV1 {
   read(input: ThriftReader): AesGcmV1 {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 2817: {
+        case 267: {
           this.aad_prefix = input.readBinary();
           break;
         }
-        case 2818: {
+        case 523: {
           this.aad_file_unique = input.readBinary();
           break;
         }
-        case 515: {
+        case 770: {
           this.supply_aad_prefix = input.readBool();
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -1494,27 +1465,26 @@ export class AesGcmCtrV1 {
   read(input: ThriftReader): AesGcmCtrV1 {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 2817: {
+        case 267: {
           this.aad_prefix = input.readBinary();
           break;
         }
-        case 2818: {
+        case 523: {
           this.aad_file_unique = input.readBinary();
           break;
         }
-        case 515: {
+        case 770: {
           this.supply_aad_prefix = input.readBool();
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -1529,23 +1499,22 @@ export class EncryptionAlgorithm {
   read(input: ThriftReader): EncryptionAlgorithm {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 3073: {
+        case 268: {
           this.AES_GCM_V1 = new AesGcmV1().read(input);
           break;
         }
-        case 3074: {
+        case 524: {
           this.AES_GCM_CTR_V1 = new AesGcmCtrV1().read(input);
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -1567,51 +1536,50 @@ export class FileMetaData {
   read(input: ThriftReader): FileMetaData {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 2049: {
+        case 264: {
           this.version = input.readI32();
           break;
         }
-        case 3842: {
-          this.schema = readFastList(input, 12, () => new SchemaElement().read(input));
+        case 527: {
+          this.schema = readList(input, 12, () => new SchemaElement().read(input));
           break;
         }
-        case 2563: {
+        case 778: {
           this.num_rows = input.readI64();
           break;
         }
-        case 3844: {
-          this.row_groups = readFastList(input, 12, () => new RowGroup().read(input));
+        case 1039: {
+          this.row_groups = readList(input, 12, () => new RowGroup().read(input));
           break;
         }
-        case 3845: {
-          this.key_value_metadata = readFastList(input, 12, () => new KeyValue().read(input));
+        case 1295: {
+          this.key_value_metadata = readList(input, 12, () => new KeyValue().read(input));
           break;
         }
-        case 2822: {
+        case 1547: {
           this.created_by = input.readString();
           break;
         }
-        case 3847: {
-          this.column_orders = readFastList(input, 12, () => new ColumnOrder().read(input));
+        case 1807: {
+          this.column_orders = readList(input, 12, () => new ColumnOrder().read(input));
           break;
         }
-        case 3080: {
+        case 2060: {
           this.encryption_algorithm = new EncryptionAlgorithm().read(input);
           break;
         }
-        case 2825: {
+        case 2315: {
           this.footer_signing_key_metadata = input.readBinary();
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd
@@ -1626,23 +1594,22 @@ export class FileCryptoMetaData {
   read(input: ThriftReader): FileCryptoMetaData {
     input.readStructBegin();
     for (;;) {
-      const { ftype, fid } = input.readFieldBegin();
-      const key = (ftype << 8) + fid;
+      const key = input.readFieldKey();
       switch (key) {
         case 0: {
           input.readStructEnd();
           return this;
         }
-        case 3073: {
+        case 268: {
           this.encryption_algorithm = new EncryptionAlgorithm().read(input);
           break;
         }
-        case 2818: {
+        case 523: {
           this.key_metadata = input.readBinary();
           break;
         }
         default: {
-          input.skip(ftype);
+          input.skip(key & 0xff);
         }
       }
       // skip readFieldEnd

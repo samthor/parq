@@ -81,10 +81,9 @@ export abstract class TCompactProtocolReader implements ThriftReader {
       case ThriftType.BOOL:
         if (this.pendingBool !== undefined) {
           this.pendingBool = undefined;
-        } else {
-          this.readByte();
+          break;
         }
-        break;
+        // fall-through
       case ThriftType.BYTE:
         this.readByte();
         break;
@@ -207,6 +206,32 @@ export abstract class TCompactProtocolReader implements ThriftReader {
       this.pendingBool = false;
     }
     return this.getTType(protocolType);
+  }
+
+  readFieldKey(): number {
+    const b = this.readByte();
+    const protocolType: CompactProtocolType = (b & 0x0f);
+    if (protocolType === 0) {
+      return 0;
+    }
+
+    const modifier = (b & 0x000000f0) >>> 4;
+    if (modifier === 0) {
+      // This is a new field ID.
+      this.fieldId = this.readI16();
+    } else {
+      // This is a delta encoded in the type byte.
+      this.fieldId += modifier;
+    }
+
+    if (protocolType === CompactProtocolType.CT_BOOLEAN_TRUE) {
+      this.pendingBool = true;
+    } else if (protocolType === CompactProtocolType.CT_BOOLEAN_FALSE) {
+      this.pendingBool = false;
+    }
+
+    const thriftFieldType = this.getTType(protocolType);
+    return (this.fieldId << 8) + thriftFieldType;
   }
 
   /**
