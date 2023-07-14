@@ -93,11 +93,13 @@ export abstract class TCompactProtocolReader implements ThriftReader {
         this.skipVarint();
         break;
       case ThriftType.DOUBLE:
-        this.readBytes(8);
+        this.skipBytes(8);
         break;
-      case ThriftType.BYTES:
-        this.readBinary(); // skip decode step, we don't know if it's a string
+      case ThriftType.BYTES: {
+        const size = this.readVarint32();
+        this.skipBytes(size);
         break;
+      }
       case ThriftType.STRUCT:
         while (true) {
           const ftype = this.readFieldForSkip();
@@ -126,7 +128,7 @@ export abstract class TCompactProtocolReader implements ThriftReader {
         break;
       }
       case ThriftType.UUID:
-        this.readBytes(16);
+        this.skipBytes(16);
         break;
       default:
         throw new Error(`TODO skip: ${type}`);
@@ -283,6 +285,8 @@ export abstract class TCompactProtocolReader implements ThriftReader {
   abstract readByte(): number;
   abstract readBytes(size: number): Uint8Array;
 
+  abstract skipBytes(size: number): void;
+
   readI16(): number {
     return this.readI32(); // lol
   }
@@ -366,9 +370,13 @@ export class TCompactProtocolReaderBuffer extends TCompactProtocolReader {
     return out;
   }
 
+  skipBytes(size: number): void {
+    this.at += size;
+  }
+
   readDouble(): number {
-    const dv = new DataView(this.buf.buffer, this.buf.byteOffset);
-    const out = dv.getFloat64(this.at, true);
+    const dv = new DataView(this.buf.buffer, this.buf.byteOffset + this.at, 8);
+    const out = dv.getFloat64(0, true);
     this.at += 8;
     return out;
   }
@@ -454,5 +462,14 @@ export class TCompactProtocolReaderPoll extends TCompactProtocolReader {
     const out = this.pending.subarray(this.at, end);
     this.at = end;
     return out;
+  }
+
+  skipBytes(size: number): void {
+    if (size < 0) {
+      throw new TypeError(`cannot skip -ve bytes: ${size}`);
+    }
+    this.ensure(size);
+    this._consumed += size;
+    this.at += size;
   }
 }
