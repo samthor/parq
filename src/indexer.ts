@@ -9,9 +9,7 @@ type IndexEntry = {
   pending?: Promise<void>;
 };
 
-const clamp = (value: number, lo: number, hi: number) => {
-  return Math.min(Math.max(value, lo), hi);
-};
+const clamp = (value: number, lo: number, hi: number) => Math.min(Math.max(value, lo), hi);
 
 /**
  * Indexer for columns of data within a Parquet file.

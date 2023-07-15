@@ -1,7 +1,7 @@
 import { Encoding, Type } from '../../dep/thrift/parquet-code.js';
 import { processDataRLE } from './process-rle.js';
 import { typedArrayView } from '../view.js';
-import { ColumnDataResult, DataType } from '../../types.js';
+import { type ColumnDataResult, DataType } from '../../types.js';
 
 /**
  * Preprocesses a binary blob of data from Parquet so that it can be efficiently indexed by a

@@ -1,9 +1,9 @@
 import * as pq from '../../dep/thrift/parquet-code.js';
-import { SchemaLeafNode } from './schema.js';
+import type { SchemaLeafNode } from './schema.js';
 import { typedArrayView } from '../view.js';
 import { yieldDataRLE } from './process-rle.js';
 import { processData } from './process.js';
-import { ColumnDataResult, Reader } from '../../types.js';
+import type { ColumnDataResult, Reader } from '../../types.js';
 import {
   TCompactProtocolReaderPoll,
   TCompactProtocolReaderPoll_OutOfData,
@@ -16,7 +16,7 @@ export type RawPage = {
   end: number;
 };
 
-const POLL_BY2_START = 7;
+const POLL_BY2_START = 6;
 const POLL_BY2_END = 12;
 
 /**
@@ -29,9 +29,9 @@ export async function pollPageHeader(r: Reader, at: number) {
   let consumed = 0;
 
   // This assumes an increasing number of bytes to try to consume the header
-  // It reads 128, 256, 512, 1024, 2048, 4196, before giving up.
+  // It reads 64, 256, 1024, 4192, before giving up.
   // Most headers in the wild seem to be <=64, some are <=128.
-  for (let i = POLL_BY2_START; i <= POLL_BY2_END; ++i) {
+  for (let i = POLL_BY2_START; i <= POLL_BY2_END; i += 2) {
     const guess = await r(at, at + (1 << i));
     const reader = new TCompactProtocolReaderPoll(guess);
 
