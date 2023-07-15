@@ -29,7 +29,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /**
- * @fileoverview varint helpers directly inferred from Google's Protocol Buffers library.
+ * @fileoverview varint helpers derived from Google's Protocol Buffers library.
  */
 
 const TWO_TO_32 = 4294967296;

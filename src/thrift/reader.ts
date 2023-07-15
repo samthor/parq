@@ -52,7 +52,7 @@ export abstract class TCompactProtocolReader implements ThriftReader {
 
   private pendingBool: boolean | undefined;
 
-  readVarint32: () => number;
+  private readVarint32: () => number;
   private readZigZagVarint32: () => number;
   private readZigZagVarint53: () => number;
 
@@ -83,7 +83,7 @@ export abstract class TCompactProtocolReader implements ThriftReader {
           this.pendingBool = undefined;
           break;
         }
-        // fall-through
+      // fall-through
       case ThriftType.BYTE:
         this.readByte();
         break;
@@ -200,8 +200,8 @@ export abstract class TCompactProtocolReader implements ThriftReader {
     if (!b) {
       return ThriftType.STOP;
     }
- 
-    const protocolType: CompactProtocolType = (b & 0x0f);
+
+    const protocolType: CompactProtocolType = b & 0x0f;
     if (protocolType === CompactProtocolType.CT_BOOLEAN_TRUE) {
       this.pendingBool = true;
     } else if (protocolType === CompactProtocolType.CT_BOOLEAN_FALSE) {
@@ -212,7 +212,7 @@ export abstract class TCompactProtocolReader implements ThriftReader {
 
   readFieldKey(): number {
     const b = this.readByte();
-    const protocolType: CompactProtocolType = (b & 0x0f);
+    const protocolType: CompactProtocolType = b & 0x0f;
     if (protocolType === 0) {
       return 0;
     }
@@ -241,7 +241,7 @@ export abstract class TCompactProtocolReader implements ThriftReader {
    */
   readFieldBegin(): FieldInfo {
     const b = this.readByte();
-    const protocolType: CompactProtocolType = (b & 0x0f);
+    const protocolType: CompactProtocolType = b & 0x0f;
 
     if (protocolType === CompactProtocolType.CT_STOP) {
       return { ftype: ThriftType.STOP, fid: 0 };
@@ -284,11 +284,10 @@ export abstract class TCompactProtocolReader implements ThriftReader {
 
   abstract readByte(): number;
   abstract readBytes(size: number): Uint8Array;
-
   abstract skipBytes(size: number): void;
 
   readI16(): number {
-    return this.readI32(); // lol
+    return this.readZigZagVarint32(); // lol
   }
 
   readI32(): number {
@@ -315,11 +314,12 @@ export abstract class TCompactProtocolReader implements ThriftReader {
   readNumber(type: ThriftType): number {
     switch (type) {
       case ThriftType.BYTE:
+        return this.readByte();
       case ThriftType.I16:
       case ThriftType.I32:
+        return this.readZigZagVarint32();
       case ThriftType.I64:
         return this.readZigZagVarint53();
-
       case ThriftType.DOUBLE:
         return this.readDouble();
     }
