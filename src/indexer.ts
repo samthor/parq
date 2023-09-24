@@ -18,18 +18,28 @@ export class ParquetIndexer {
   private r: ParquetReader;
   private index: IndexEntry[];
   private columnNo: number;
-  private listener: (r: ReadPart) => void;
+  private listener: (r: ReadPart) => void = () => {};
 
-  constructor(r: ParquetReader, columnNo: number, listener: (r: ReadPart) => void) {
+  constructor(r: ParquetReader, columnNo: number) {
     this.r = r;
     this.columnNo = columnNo;
-    this.listener = listener;
 
     // These groups are always contiguous (they have a `num_rows` field, not start/end).
     this.index = this.r.groupsAt().map((g, groupNo) => {
       return { at: g.start, groupNo };
     });
     this.index.push({ at: this.r.rows() });
+  }
+
+  /**
+   * Adds a read listener to this indexer. This is called whenever new data is indexed.
+   */
+  addListener(listener: (r: ReadPart) => void) {
+    const prev = this.listener;
+    this.listener = (r) => {
+      prev(r);
+      listener(r);
+    };
   }
 
   /**
@@ -78,7 +88,7 @@ export class ParquetIndexer {
 
     await (groupEntry.pending = (async () => {
       const updates: IndexEntry[] = [];
-      let dictPartPromise: Promise<ReadDictPart | null> | undefined;
+      let dictPartPromise: Promise<ReadDictPart | null> = Promise.resolve(null);
 
       const gen = this.r.indexColumnGroup(this.columnNo, groupNo);
       for await (const next of gen) {

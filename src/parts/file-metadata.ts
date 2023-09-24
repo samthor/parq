@@ -1,4 +1,4 @@
-import { TCompactProtocolReaderBuffer } from '../thrift/reader.js';
+import { CompactProtocolReader } from 'thrift-tools';
 import * as pq from '../../dep/thrift/parquet-code.js';
 import { decodeSchema, type SchemaLeafNode } from './schema.js';
 
@@ -29,11 +29,13 @@ export type FileMetadata = {
  * Parse a metadata section of a Parquet file.
  */
 export function parseFileMetadata(buf: Uint8Array): FileMetadata {
-  const reader = new TCompactProtocolReaderBuffer(buf);
+  const reader = new CompactProtocolReader(buf);
 
   const s = new pq.FileMetaData();
   s.read(reader); // TODO: for ~48mb metadata, this takes ~500ms - maybe that's fine?
 
+  console.info('READ DATA', s, {bytes: reader.at});
+  
   const schemaNode = decodeSchema(s.schema);
   const allColumns: FileMetadata['columns'] = schemaNode.columns.map((schema) => {
     return {

@@ -17,5 +17,8 @@
 			"types": "./index.d.ts"
 		}
 	},
-	"name": "thor-dataread"
+	"name": "thor-dataread",
+	"dependencies": {
+		"thrift-tools": "^0.1.3"
+	}
 }

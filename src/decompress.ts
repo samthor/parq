@@ -15,6 +15,9 @@ export async function decompress(arr: Uint8Array, codec: CompressionCodec): Prom
       return snappyDecompress(arr);
 
     case CompressionCodec.GZIP:
+      // TODO: This needs a conditional import for Node or the browser.
+      // The browser should have an optional way to provide `pako` or similar when there's no
+      // decompression stream code available.
       throw new Error(`TODO: implement gzip via browser/node support`);
 
     default:

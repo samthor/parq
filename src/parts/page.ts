@@ -4,10 +4,7 @@ import { typedArrayView } from '../view.js';
 import { yieldDataRLE } from './process-rle.js';
 import { processData } from './process.js';
 import type { ColumnDataResult, Reader } from '../../types.js';
-import {
-  TCompactProtocolReaderPoll,
-  TCompactProtocolReaderPoll_OutOfData,
-} from '../thrift/reader.js';
+import { CompactProtocolReaderPoll, CompactProtocolReaderPoll_OutOfData } from 'thrift-tools';
 
 export type RawPage = {
   header: pq.PageHeader;
@@ -33,12 +30,12 @@ export async function pollPageHeader(r: Reader, at: number) {
   // Most headers in the wild seem to be <=64, some are <=128.
   for (let i = POLL_BY2_START; i <= POLL_BY2_END; i += 2) {
     const guess = await r(at, at + (1 << i));
-    const reader = new TCompactProtocolReaderPoll(guess);
+    const reader = new CompactProtocolReaderPoll(guess);
 
     try {
       header.read(reader);
     } catch (e) {
-      if (i !== POLL_BY2_END && e instanceof TCompactProtocolReaderPoll_OutOfData) {
+      if (i !== POLL_BY2_END && e instanceof CompactProtocolReaderPoll_OutOfData) {
         header = new pq.PageHeader();
         continue;
       }

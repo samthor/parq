@@ -67,6 +67,7 @@ export function processDataPlain(arr: Uint8Array, count: number, type: Type): Co
   switch (type) {
     case Type.BOOLEAN: {
       // The docs are super unclear; are these int32's, or is it bit-encoded.
+      // TODO: haven't seen one in the wild.
       throw new Error(
         `TODO: found Type.BOOLEAN, how long is this? count=${count} arr.length=${arr.length}`,
       );

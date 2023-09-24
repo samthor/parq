@@ -61,23 +61,22 @@ export class ParquetReader {
   async dictForColumnGroup(columnNo: number, groupNo: number): Promise<ReadDictPart | null> {
     const column = this.metadata!.columns[columnNo];
     const chunk = column.chunks[groupNo];
+    const { header, consumed } = await pollPageHeader(this.r, chunk.begin);
 
     if (chunk.dictionarySize === 0) {
       // Check if there was actually a dictionary in the 1st position.
-      const { header, consumed } = await pollPageHeader(this.r, chunk.begin);
       if (header.type !== pq.PageType.DICTIONARY_PAGE) {
         return null;
       }
       chunk.dictionarySize = consumed + header.compressed_page_size;
     }
 
-    const { header, consumed } = await pollPageHeader(this.r, chunk.begin);
     const count = countForPageHeader(header);
     const dataBegin = chunk.begin + consumed;
     const dataEnd = dataBegin + header.compressed_page_size;
 
     if (dataEnd !== chunk.begin + chunk.dictionarySize) {
-      throw new Error(`Got inconsistent dictionary dize`);
+      throw new Error(`Got inconsistent dictionary size`);
     }
     if (header.type !== pq.PageType.DICTIONARY_PAGE) {
       throw new Error(`Got invalid type for dict: ${header.type}`);
@@ -180,9 +179,7 @@ export class ParquetReader {
   }
 
   groupsAt() {
-    return this.metadata!.groups.map(({ start, end }) => {
-      return { start, end };
-    });
+    return this.metadata!.groups.map(({ start, end }) => ({ start, end }));
   }
 
   get groups() {

@@ -4,8 +4,6 @@ import { ParquetIndexer } from './src/indexer.js';
 import * as fs from 'node:fs';
 import { readerFor } from './src/helper/node-reader.js';
 
-import { createInterface } from 'node:readline/promises';
-
 async function demo(p: string) {
   const f = await fs.promises.open(p);
   const stat = await f.stat();
