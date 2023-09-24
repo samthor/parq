@@ -401,6 +401,7 @@ export class SchemaElement {
     input.readStructBegin();
     for (;;) {
       const key = input.readStructKey();
+      console.info('SCHEMA READING', {key, type: key & 0xff, fieldId: key >>> 8 });
       switch (key) {
         case 0:
           return this;
@@ -435,6 +436,7 @@ export class SchemaElement {
           this.logicalType = new LogicalType().read(input);
           break;
         default:
+          console.info('SCHEMA SKIP', {key, type: key & 0xff, fieldId: key >>> 8 });
           input.skip(key & 0xff);
       }
     }
@@ -1282,7 +1284,7 @@ export class FileMetaData {
     input.readStructBegin();
     for (;;) {
       const key = input.readStructKey();
-      console.info('got key', key);
+      console.info('READING', {key, type: key & 0xff, fieldId: key >>> 8 });
       switch (key) {
         case 0:
           return this;
@@ -1291,6 +1293,7 @@ export class FileMetaData {
           break;
         case 521:
           this.schema = readList(input, 12, () => new SchemaElement().read(input));
+          console.debug('READ SCHEMA NOW AT', input.at);
           break;
         case 774:
           this.num_rows = input.readI64();
@@ -1314,7 +1317,7 @@ export class FileMetaData {
           this.footer_signing_key_metadata = input.readBinary();
           break;
         default:
-          console.info('SKIPPING', key, 'type', key & 0xff, 'fieldId', (key >>> 8));
+          console.info('SKIPPING', {key, type: key & 0xff, fieldId: key >>> 8 });
           input.skip(key & 0xff);
       }
     }
