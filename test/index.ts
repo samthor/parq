@@ -12,8 +12,6 @@ test('read', async () => {
 
   const columns = await pr.columns();
 
-  console.info('cols', columns);
-
   assert.strictEqual(pr.groups, 1);
   assert.strictEqual(columns.length, 13);
 
