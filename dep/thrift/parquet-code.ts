@@ -1284,7 +1284,7 @@ export class FileMetaData {
     input.readStructBegin();
     for (;;) {
       const key = input.readStructKey();
-      console.info('READING', {key, type: key & 0xff, fieldId: key >>> 8 });
+      console.info('READING', {key, type: key & 0xff, fieldId: key >>> 8, at: input.at });
       switch (key) {
         case 0:
           return this;
