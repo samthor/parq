@@ -1,4 +1,4 @@
-import { ParquetReader } from './src/read.js';
+import { buildReader } from './src/read.js';
 import { fileSize } from './src/helper/format.js';
 import { ParquetIndexer } from './src/indexer.js';
 import * as fs from 'node:fs';
@@ -11,9 +11,8 @@ async function demo(p: string) {
   const r = readerFor(f);
 
   try {
-    const reader = new ParquetReader(r);
     console.time('init');
-    await reader.init();
+    const reader = await buildReader(r);
     console.timeEnd('init');
 
     // // Read all parts of 0th group for demo.
@@ -45,17 +44,15 @@ async function demo(p: string) {
     // await Promise.all(tasks);
     // console.timeEnd('index');
 
-    const i = new ParquetIndexer(reader, 0, (part) => {
-      //      console.debug('found new part', part.id, part.count);
-    });
-    console.info('source data has rows', reader.rows(), 'groups', reader.groups);
+    const i = new ParquetIndexer(reader, 0);
+    console.info('source data has rows', reader.rows(), 'groups', reader.groups().length);
 
     console.time('find');
-    const arg = { start: 0, end: 100 };
+    const arg = { start: 0, end: 200_000 };
     const out = await i.findRange(arg);
     console.timeEnd('find');
 
-    console.info('got data', arg, { start: out.start }, out.data);
+    console.info('got data', arg, { start: out.start }, out.part);
 
     console.time('find');
     const out2 = await i.findRange(arg);

@@ -30,7 +30,7 @@ export type SchemaLeafNode = {
    */
   dl: number;
 
-  raw: any;
+  raw: pq.SchemaElement;
 };
 
 export function decodeSchema(elements: pq.SchemaElement[]) {
@@ -77,6 +77,7 @@ function internalDecodeSchema(
     if (raw.type === undefined) {
       throw new TypeError(`Got no type for non-leaf schema node`);
     }
+
     const node: SchemaLeafNode = {
       nested: false,
       name: raw.name,

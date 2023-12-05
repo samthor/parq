@@ -1,5 +1,4 @@
-import type { ReadColumnPart, ReadDictPart, ReadPart } from '../types.js';
-import type { ParquetReader } from './read.js';
+import type { ParquetReader, ReadColumnPart, ReadDictPart, ReadPart } from '../types.js';
 
 type IndexEntry = {
   at: number;
@@ -25,7 +24,7 @@ export class ParquetIndexer {
     this.columnNo = columnNo;
 
     // These groups are always contiguous (they have a `num_rows` field, not start/end).
-    this.index = this.r.groupsAt().map((g, groupNo) => {
+    this.index = this.r.groups().map((g, groupNo) => {
       return { at: g.start, groupNo };
     });
     this.index.push({ at: this.r.rows() });
@@ -90,7 +89,7 @@ export class ParquetIndexer {
       const updates: IndexEntry[] = [];
       let dictPartPromise: Promise<ReadDictPart | null> = Promise.resolve(null);
 
-      const gen = this.r.indexColumnGroup(this.columnNo, groupNo);
+      const gen = this.r.load(this.columnNo, groupNo);
       for await (const next of gen) {
         // TODO: technically the last part could not be "complete" to the next group?
         updates.push({
@@ -102,7 +101,7 @@ export class ParquetIndexer {
         if ('lookup' in next && !dictPartPromise) {
           // We don't really need to index this _until_ the caller wants the data but it's simpler
           // this way.
-          dictPartPromise = this.r.dictForColumnGroup(this.columnNo, groupNo);
+          dictPartPromise = this.r.dictFor(this.columnNo, groupNo);
         }
       }
 
@@ -132,13 +131,13 @@ export class ParquetIndexer {
   }: {
     start: number;
     end: number;
-  }): Promise<{ start: number; end: number, data: ReadColumnPart[], ids: number[] }> {
+  }): Promise<{ start: number; end: number, part: ReadColumnPart[], ids: number[] }> {
     const rows = this.r.rows();
     start = clamp(start, 0, rows);
     end = clamp(end, start, rows);
 
     if (end === start) {
-      return { start: 0, end: 0, data: [], ids: [] };
+      return { start: 0, end: 0, part: [], ids: [] };
     }
 
     for (;;) {
@@ -163,7 +162,7 @@ export class ParquetIndexer {
         start: indexParts[0].at,
         end: lastPartReader.start + lastPartReader.count,
         // TODO: just return IDs?
-        data: indexParts.map(({ r }) => r!),
+        part: indexParts.map(({ r }) => r!),
         ids: indexParts.map(({ r }) => r!.id),
       };
     }

@@ -1,92 +1,51 @@
-export enum DataType {
-  INT8 = 1,
-  INT16,
-  INT32,
-  INT64,
-  FLOAT,
-  DOUBLE,
+import type { ConvertedType, LogicalType, Type } from './dep/thrift/parquet-code.ts';
 
-  /**
-   * This is used for INT96, which can't be represented in any/most languages easily.
-   */
-  BIG_BYTE_ARRAY,
+export type ParquetReader = {
+  dictFor(columnNo: number, groupNo: number): Promise<ReadDictPart | null>;
+  load(columnNo: number, groupNo: number): AsyncGenerator<ReadColumnPart, void, void>;
+  rows(): number;
+  columns(): Array<ColumnInfo>;
+  groups(): Array<GroupInfo>;
+};
 
-  /**
-   * This is just bytes.
-   */
-  FIXED_LENGTH_BYTE_ARRAY,
-
-  /**
-   * This contains `[uint32 length + bytes, ...]`.
-   */
-  LENGTH_BYTE_ARRAY,
+export type GroupInfo = {
+  start: number;
+  end: number;
 }
 
-/**
- * Data that may be used to lookup other data in a dictionary.
- */
-export type ColumnDataResultLookup = { lookup?: true } & (
-  | {
-      type: DataType.INT8;
-      arr: Int8Array;
-    }
-  | {
-      type: DataType.INT16;
-      arr: Int16Array;
-    }
-  | {
-      type: DataType.INT32;
-      arr: Int32Array;
-    }
-);
+export type ColumnInfo = {
+  name: string;
+  typeLength: number;
+  physicalType: Type,
+  logicalType?: LogicalType;
+};
 
-/**
- * Any data that has been expanded for return from reading some encoded file.
- */
-export type ColumnDataResult =
-  | {
-      type: DataType.INT8;
-      arr: Int8Array;
-    }
-  | {
-      type: DataType.INT16;
-      arr: Int16Array;
-    }
-  | {
-      type: DataType.INT32;
-      arr: Int32Array;
-    }
-  | {
-      type: DataType.INT64;
-      arr: BigInt64Array;
-    }
-  | {
-      type: DataType.FLOAT;
-      arr: Float32Array;
-    }
-  | {
-      type: DataType.DOUBLE;
-      arr: Float64Array;
-    }
-  | {
-      type: DataType.BIG_BYTE_ARRAY;
-      size: number;
-      arr: Uint8Array;
-    }
-  | {
-      type: DataType.FIXED_LENGTH_BYTE_ARRAY;
-      arr: Uint8Array;
-    }
-  | {
-      type: DataType.LENGTH_BYTE_ARRAY;
-      arr: Uint8Array;
-    };
+export type ColumnData = {
+  raw: Uint8Array;
+  count: number;
+  index: false;
+
+  // TODO: the following stuff is probably same per-group header
+  // probably the same per schema too
+
+  type?: Type;
+  convertedType?: ConvertedType;
+  bitLength: number;
+  fp: boolean;
+};
+
+export type IndexColumnData = {
+  ptr: ArrayLike<number>;
+  index: true;
+};
 
 export type ReadDictPart = {
   id: number;
-  count: number;
   dict: true;
-  read(): Promise<ColumnDataResult>;
+  start: 0;
+  count: number;
+  lookup: undefined;
+  read(): Promise<ColumnData>;
 };
 
 /**
@@ -98,16 +57,17 @@ export type ReadDictPart = {
  */
 export type ReadColumnPart = {
   id: number;
-  count: number;
   dict: false;
   start: number;
+  count: number;
 } & (
   | {
-      lookup: number;
-      read(): Promise<ColumnDataResultLookup>;
+      lookup: undefined;
+      read(): Promise<ColumnData>;
     }
   | {
-      read(): Promise<ColumnDataResult>;
+      lookup: number;
+      read(): Promise<IndexColumnData>;
     }
 );
 

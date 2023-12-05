@@ -1,10 +1,10 @@
 {
 	"devDependencies": {
-		"@types/node": "^18.15.11",
-		"esbuild": "^0.17.17",
-		"thorish": "^1.1.4",
-		"tsx": "^3.12.6",
-		"vite": "^4.4.4"
+		"@types/node": "^18.19.2",
+		"esbuild": "^0.17.19",
+		"thorish": "^1.1.8",
+		"tsx": "^4.6.2",
+		"vite": "^4.5.1"
 	},
 	"type": "module",
 	"scripts": {
@@ -19,6 +19,6 @@
 	},
 	"name": "thor-dataread",
 	"dependencies": {
-		"thrift-tools": "^0.1.4"
+		"thrift-tools": "^0.1.5"
 	}
 }

@@ -3,8 +3,10 @@ import { decompress } from './decompress.js';
 import { parseFileMetadata, type FileMetadata } from './parts/file-metadata.js';
 import { typedArrayView } from './view.js';
 import {
-  ColumnDataResult,
-  ColumnDataResultLookup,
+  ColumnData,
+  ColumnInfo,
+  IndexColumnData,
+  ParquetReader,
   ReadColumnPart,
   ReadDictPart,
   Reader,
@@ -18,39 +20,47 @@ import {
 } from './parts/page.js';
 import { processDataPlain } from './parts/process.js';
 
-export class ParquetReader {
-  r: Reader;
-  metadata?: FileMetadata;
+export async function buildReader(r: Reader): Promise<ParquetReader> {
+  const td = new TextDecoder('utf-8');
 
-  constructor(r: Reader) {
-    this.r = r;
+  const headerPromise = r(0, 4);
+  const footerPromise = r(-8);
+
+  const headerBytes = await headerPromise;
+  if (td.decode(headerBytes) !== 'PAR1') {
+    throw new Error(`Not a parquet file: ${r}`);
   }
 
-  async columns(): Promise<Array<string>> {
-    return this.metadata!.columns.map((x) => x.schema.name);
+  const footerBytes = await footerPromise;
+  if (td.decode(footerBytes.subarray(4)) !== 'PAR1') {
+    throw new Error(`Not a parquet file: ${r}`);
   }
 
-  async init() {
-    const td = new TextDecoder('utf-8');
+  const v = typedArrayView(footerBytes);
+  const metadataSize = v.getUint32(0, true);
+  const metadataBytes = await r(-8 - metadataSize, -8);
 
-    const headerPromise = this.r(0, 4);
-    const footerPromise = this.r(-8);
+  const metadata = parseFileMetadata(metadataBytes);
 
-    const headerBytes = await headerPromise;
-    if (td.decode(headerBytes) !== 'PAR1') {
-      throw new Error(`Not a parquet file: ${this.r}`);
-    }
+  return new ParquetReaderImpl(r, metadata);
+}
 
-    const footerBytes = await footerPromise;
-    if (td.decode(footerBytes.subarray(4)) !== 'PAR1') {
-      throw new Error(`Not a parquet file: ${this.r}`);
-    }
+export class ParquetReaderImpl implements ParquetReader {
+  constructor(public r: Reader, public metadata: FileMetadata) {}
 
-    const v = typedArrayView(footerBytes);
-    const metadataSize = v.getUint32(0, true);
-    const metadataBytes = await this.r(-8 - metadataSize, -8);
+  columns(): Array<ColumnInfo> {
+    return this.metadata.columns.map((x): ColumnInfo => {
+      const raw = x.schema.raw;
+      return {
+        name: x.schema.name,
+        typeLength: x.schema.typeLength,
+        physicalType: raw.type!,
 
-    this.metadata = parseFileMetadata(metadataBytes);
+        // TODO: this is generally not populated, but there is a documented mapping (...for most things)
+        //   https://github.com/apache/parquet-format/blob/master/LogicalTypes.md
+        logicalType: raw.logicalType,
+      };
+    });
   }
 
   /**
@@ -58,8 +68,8 @@ export class ParquetReader {
    *
    * This reads just the header immediately, like {@link #indexColumnGroup}.
    */
-  async dictForColumnGroup(columnNo: number, groupNo: number): Promise<ReadDictPart | null> {
-    const column = this.metadata!.columns[columnNo];
+  async dictFor(columnNo: number, groupNo: number): Promise<ReadDictPart | null> {
+    const column = this.metadata.columns[columnNo];
     const chunk = column.chunks[groupNo];
     const { header, consumed } = await pollPageHeader(this.r, chunk.begin);
 
@@ -87,25 +97,25 @@ export class ParquetReader {
       throw new Error(`Unexpected dictionary encoding: ${dictionaryHeader.encoding}`);
     }
 
-    const read = async (): Promise<ColumnDataResult> => {
+    const read = async (): Promise<ColumnData> => {
       const compressed = await this.r(dataBegin, dataEnd);
       const buf = await decompress(compressed, chunk.codec);
       return processDataPlain(buf, count, column.schema.type);
     };
 
-    return { id: chunk.begin, count, read, dict: true };
+    return { id: chunk.begin, start: 0, count, read, dict: true, lookup: undefined };
   }
 
   /**
    * Provides a {@link AsyncGenerator} over the pages within this column/group. This doesn't read
    * the underlying data from the source until `read()` is called.
    */
-  async *indexColumnGroup(
+  async *load(
     columnNo: number,
     groupNo: number,
   ): AsyncGenerator<ReadColumnPart, void, void> {
-    const group = this.metadata!.groups[groupNo];
-    const column = this.metadata!.columns[columnNo];
+    const group = this.metadata.groups[groupNo];
+    const column = this.metadata.columns[columnNo];
     const chunk = column.chunks[groupNo];
 
     let position = group.start;
@@ -133,23 +143,33 @@ export class ParquetReader {
 
       offset = dataEnd;
 
-      const read = async (): Promise<ColumnDataResult> => {
+      const read = async (): Promise<ColumnData> => {
         const compressed = await this.r(dataBegin, dataEnd);
         const buf = await decompress(compressed, chunk.codec);
+        let data: ColumnData;
 
         switch (header.type) {
           case pq.PageType.DATA_PAGE:
-            return processTypeDataPage(header, column.schema, buf);
+            data = await processTypeDataPage(header, column.schema, buf);
+            break;
 
           case pq.PageType.DATA_PAGE_V2:
-            return processTypeDataPageV2(header, column.schema, buf);
+            data = await processTypeDataPageV2(header, column.schema, buf);
+            break;
 
           default:
             throw new Error(`Unsupported page type: ${header.type}`);
         }
+
+        const convertedType = column.schema.raw.converted_type;
+        if (convertedType !== undefined) {
+          data.convertedType = convertedType;
+        }
+
+        return data;
       };
 
-      // If this id a dict lookup, include the lookup 'id' and change the read type.
+      // If this id a dict lookup, include the lookup 'id' and change the read method.
       if (isDictLookup(header)) {
         if (!chunk.dictionarySize) {
           throw new Error(`got dict lookup without dict`);
@@ -158,31 +178,44 @@ export class ParquetReader {
           id: offset,
           count,
           dict: false,
-          lookup: chunk.begin,
           start,
-          read: read as () => Promise<ColumnDataResultLookup>,
+          lookup: chunk.begin,
+          read: indexRead.bind(null, read),
         };
       } else {
-        yield { id: offset, count, dict: false, start, read };
+        yield {
+          id: offset,
+          count,
+          dict: false,
+          start,
+          lookup: undefined,
+          read,
+        };
       }
 
       position += count;
     }
   }
 
-  columnLength() {
-    return this.metadata!.columns.length;
-  }
-
   rows() {
-    return this.metadata!.rows;
+    return this.metadata.rows;
   }
 
-  groupsAt() {
-    return this.metadata!.groups.map(({ start, end }) => ({ start, end }));
+  groups() {
+    return this.metadata.groups.map(({ start, end }) => ({ start, end }));
   }
+}
 
-  get groups() {
-    return this.metadata!.groups.length;
+export async function indexRead(read: () => Promise<ColumnData>): Promise<IndexColumnData> {
+  const out = await read();
+
+  switch (out.bitLength) {
+    case 8:
+      return { index: true, ptr: out.raw };
+    case 16:
+      return { index: true, ptr: new Uint16Array(out.raw.buffer) };
+    case 32:
+      return { index: true, ptr: new Uint32Array(out.raw.buffer) };
   }
+  throw new Error(`invalid index bitLength: ${out.bitLength}`);
 }

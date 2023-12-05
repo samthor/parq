@@ -1,7 +1,7 @@
 import { Encoding, Type } from '../../dep/thrift/parquet-code.js';
-import { processDataRLE } from './process-rle.js';
+import { type IntArray, processDataRLE } from './process-rle.js';
 import { typedArrayView } from '../view.js';
-import { type ColumnDataResult, DataType } from '../../types.js';
+import type { ColumnData } from '../../types.js';
 
 /**
  * Preprocesses a binary blob of data from Parquet so that it can be efficiently indexed by a
@@ -13,7 +13,9 @@ export function processData(
   count: number,
   type: Type,
   typeLength: number,
-): ColumnDataResult {
+): ColumnData {
+  let int: IntArray;
+
   switch (encoding) {
     case Encoding.PLAIN: {
       return processDataPlain(arr, count, type);
@@ -31,15 +33,13 @@ export function processData(
       // given bit width)."
       //   https://parquet.apache.org/docs/file-format/data-pages/encodings/#dictionary-encoding-plain_dictionary--2-and-rle_dictionary--8
       const typeLength = arr[0];
-      if (typeLength > 32) {
+      if (typeLength > 32 || typeLength <= 0) {
         throw new Error(`Bad PLAIN_DICTIONARY: typeLength=${typeLength}`);
       }
 
       const out = processDataRLE(arr.subarray(1), count, typeLength);
-      return {
-        lookup: true, // indicate this will index something else
-        ...out.pt,
-      };
+      int = out.int;
+      break;
     }
 
     case Encoding.RLE: {
@@ -50,72 +50,102 @@ export function processData(
       if (out.offset !== expectedOffset) {
         throw new Error(`Got unexpected RLE length: ${out.offset}`);
       }
-
-      return out.pt;
+      int = out.int;
+      break;
     }
 
     default:
+      // TODO: implement these (e.g., DELTA_BINARY_PACKED)
       throw new Error(`Unsupported encoding: ${encoding}`);
   }
+
+  return {
+    bitLength: int.BYTES_PER_ELEMENT * 8,
+    fp: false,
+    raw: int instanceof Uint8Array ? int : new Uint8Array(int.buffer),
+    count,
+    index: false, // replaced later
+  };
 }
 
 /**
  * Maps a plain section of Parquet data (i.e., values stored in regular bytes) to a matching JS
  * typed array view.
  */
-export function processDataPlain(arr: Uint8Array, count: number, type: Type): ColumnDataResult {
+export function processDataPlain(arr: Uint8Array, count: number, type: Type): ColumnData {
   switch (type) {
     case Type.BOOLEAN: {
-      // The docs are super unclear; are these int32's, or is it bit-encoded.
-      // TODO: haven't seen one in the wild.
-      throw new Error(
-        `TODO: found Type.BOOLEAN, how long is this? count=${count} arr.length=${arr.length}`,
-      );
+      // The docs basically say this is bit-encoded in a sane way.
+      return {
+        type,
+        bitLength: 1,
+        fp: false,
+        raw: arr,
+        count,
+        index: false, // replaced later
+      };
     }
 
     case Type.FIXED_LEN_BYTE_ARRAY: {
-      return {
-        type: DataType.FIXED_LENGTH_BYTE_ARRAY,
-        arr,
-      };
+      // TODO: this might be derivable here, _but_, it's also in the schema
+
+      throw new Error(`TODO: this is a fixed size? arr.length=${arr.length} count=${count}`);
     }
 
     case Type.INT32: {
       return {
-        type: DataType.INT32,
-        arr: new Int32Array(arr.buffer, arr.byteOffset, arr.byteLength >>> 2),
+        type,
+        bitLength: 32,
+        fp: false,
+        raw: arr,
+        count,
+        index: false, // replaced later
       };
     }
 
     case Type.INT64: {
       return {
-        type: DataType.INT64,
-        arr: new BigInt64Array(arr.buffer, arr.byteOffset, arr.byteLength >>> 3),
+        type,
+        bitLength: 64,
+        fp: false,
+        raw: arr,
+        count,
+        index: false, // replaced later
       };
     }
 
     case Type.INT96: {
       // INT96 is deprecated: https://issues.apache.org/jira/browse/PARQUET-323
       // It's used to store "nanosec timestamp" only.
-      // This return type is a bit funky for that reason.
       return {
-        type: DataType.BIG_BYTE_ARRAY,
-        size: 12,
-        arr,
+        type,
+        bitLength: 96,
+        fp: false,
+        raw: arr,
+        count,
+        index: false, // replaced later
       };
     }
 
     case Type.FLOAT: {
       return {
-        type: DataType.FLOAT,
-        arr: new Float32Array(arr.buffer, arr.byteOffset, arr.byteLength >>> 2),
+        type,
+        bitLength: 32,
+        fp: true,
+        raw: arr,
+        count,
+        index: false, // replaced later
       };
     }
 
     case Type.DOUBLE: {
       return {
-        type: DataType.DOUBLE,
-        arr: new Float64Array(arr.buffer, arr.byteOffset, arr.byteLength >>> 3),
+        type,
+        bitLength: 64,
+        fp: true,
+        raw: arr,
+        count,
+        index: false, // replaced later
       };
     }
 
@@ -123,8 +153,12 @@ export function processDataPlain(arr: Uint8Array, count: number, type: Type): Co
       // TODO: The data here is [uint32 length + bytes, ...]
       // It could be indexed here.
       return {
-        type: DataType.LENGTH_BYTE_ARRAY,
-        arr,
+        type,
+        bitLength: 0,
+        fp: false,
+        raw: arr,
+        count,
+        index: false, // replaced later
       };
     }
   }

@@ -3,15 +3,8 @@ import type { SchemaLeafNode } from './schema.js';
 import { typedArrayView } from '../view.js';
 import { yieldDataRLE } from './process-rle.js';
 import { processData } from './process.js';
-import type { ColumnDataResult, Reader } from '../../types.js';
+import type { ColumnData, Reader } from '../../types.js';
 import { CompactProtocolReaderPoll, CompactProtocolReaderPoll_OutOfData } from 'thrift-tools';
-
-export type RawPage = {
-  header: pq.PageHeader;
-  type: pq.PageType;
-  begin: number;
-  end: number;
-};
 
 const POLL_BY2_START = 6;
 const POLL_BY2_END = 12;
@@ -93,22 +86,31 @@ export function isDictLookup(header: pq.PageHeader): boolean {
 }
 
 /**
+ * Whether this {@link pq.Encoding} is basically RLE.
+ */
+const isRLE = (enc: pq.Encoding) => enc === pq.Encoding.RLE || enc == pq.Encoding.BIT_PACKED;
+
+/**
  * Processes a {@link PageType.DATA_PAGE}.
  */
 export function processTypeDataPage(
   header: pq.PageHeader,
   schema: SchemaLeafNode,
   data: Uint8Array,
-): ColumnDataResult {
+): ColumnData {
   const dpHeader = header.data_page_header!;
   const valueCount = dpHeader.num_values;
 
   const rlEncoding = dpHeader.repetition_level_encoding;
   const dlEncoding = dpHeader.definition_level_encoding;
 
-  if (rlEncoding !== pq.Encoding.RLE || dlEncoding !== pq.Encoding.RLE) {
+  // Supports RLE or BIT_PACKED, which is a subset:
+  //   https://parquet.apache.org/docs/file-format/data-pages/encodings/
+  if (!isRLE(rlEncoding) || !isRLE(dlEncoding)) {
     // In V2, this is always the case.
-    throw new Error(`expected DL/RL encoding of RLE`);
+    throw new Error(
+      `expected DL/RL encoding of RLE: was rlEncoding=${rlEncoding} dlEncoding=${dlEncoding}`,
+    );
   }
 
   let effectiveValueCount = valueCount;
@@ -154,7 +156,7 @@ export function processTypeDataPageV2(
   header: pq.PageHeader,
   schema: SchemaLeafNode,
   data: Uint8Array,
-): ColumnDataResult {
+): ColumnData {
   throw new Error('TODO: V2');
 }
 

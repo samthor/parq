@@ -1,9 +1,10 @@
 import { decodeVarint32 } from '../varint.js';
-import { type ColumnDataResultLookup, DataType } from '../../types.js';
 
 const fromRightMask = [
   0b11111111, 0b01111111, 0b00111111, 0b00011111, 0b00001111, 0b00000111, 0b00000011, 0b00000001,
 ];
+
+export type IntArray = Int8Array | Int16Array | Int32Array;
 
 /**
  * Decode a bitpacked run by shifting within u8's.
@@ -15,7 +16,7 @@ function decodeRunBitpacked_shifter(
   offset: number,
   count8: number,
   typeLength: number,
-  target: Int8Array | Int16Array | Int32Array,
+  target: IntArray,
   targetOffset: number,
 ): number {
   let bitOffset = 0;
@@ -196,22 +197,13 @@ function readRunRepeated_u32(arr: Uint8Array, offset: number): number {
   return (arr[offset + 3] << 24) + (arr[offset + 2] << 16) + (arr[offset + 1] << 8) + arr[offset];
 }
 
-function buildOut(typeLength: number, count: number) {
+function buildOut(typeLength: number, count: number): IntArray {
   if (typeLength <= 8) {
-    return {
-      type: DataType.INT8 as DataType.INT8,
-      arr: new Int8Array(count),
-    };
+    return new Int8Array(count);
   } else if (typeLength <= 16) {
-    return {
-      type: DataType.INT16 as DataType.INT16,
-      arr: new Int16Array(count),
-    };
+    return new Int16Array(count);
   } else if (typeLength <= 32) {
-    return {
-      type: DataType.INT32 as DataType.INT32,
-      arr: new Int32Array(count),
-    };
+    return new Int32Array(count);
   } else {
     throw new Error(`TODO: RLE does not support 64-bit values yet`);
   }
@@ -300,12 +292,11 @@ export function processDataRLE(
   arr: Uint8Array,
   totalCount: number,
   typeLength: number,
-): { pt: ColumnDataResultLookup; offset: number } {
+): { int: IntArray; offset: number } {
   const typeLengthBytes = ((typeLength - 1) >> 3) + 1;
   const readRunRepeated = readRunRepeatedTable[typeLengthBytes] ?? throwReadRunRepeated;
 
-  const pt = buildOut(typeLength, totalCount + 8);
-  const { arr: resultArr } = pt;
+  const resultArr = buildOut(typeLength, totalCount + 8);
   let offset = 0;
 
   let j = 0;
@@ -334,7 +325,7 @@ export function processDataRLE(
   }
 
   // Remove any trailing data (since we allow +8 for bitpacked).
-  pt.arr = pt.arr.subarray(0, totalCount);
+  const int = resultArr.subarray(0, totalCount);
 
-  return { pt, offset };
+  return { int, offset };
 }
