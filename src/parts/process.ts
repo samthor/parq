@@ -1,5 +1,5 @@
 import { Encoding, Type } from '../../dep/thrift/parquet-code.js';
-import { type IntArray, processDataRLE } from './process-rle.js';
+import { processDataRLE } from './process-rle.js';
 import { toUint8Array, typedArrayView } from '../view.js';
 import type { Data } from '../../types.js';
 

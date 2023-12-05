@@ -2,7 +2,7 @@ import * as pq from '../dep/thrift/parquet-code.js';
 import { decompress } from './decompress.js';
 import { parseFileMetadata, type FileMetadata } from './parts/file-metadata.js';
 import { toUint16Array, toUint32Array, typedArrayView } from './view.js';
-import { ColumnInfo, Part, ParquetReader, Reader, Data } from '../types.js';
+import { ColumnInfo, Part, ParquetReader, Reader, Data, UintArray } from '../types.js';
 import {
   countForPageHeader,
   isDictLookup,
@@ -11,7 +11,8 @@ import {
   processTypeDataPageV2,
 } from './parts/page.js';
 
-export async function buildReader(r: Reader): Promise<ParquetReader> {
+export async function buildReader(r: Reader | Promise<Reader>): Promise<ParquetReader> {
+  r = await r;
   const td = new TextDecoder('utf-8');
 
   const headerPromise = r(0, 4);
@@ -178,6 +179,50 @@ export class ParquetReaderImpl implements ParquetReader {
     }
   }
 
+  groupIndex(row: number) {
+    // TODO: binary search
+    return this.metadata.groups.findIndex((g) => {
+      return row >= g.start && row < g.end;
+    });
+  }
+
+  async *loadRange(columnNo: number, start: number, end: number): AsyncGenerator<Part, void, void> {
+    start = Math.max(0, start);
+    end = Math.min(this.metadata.rows, end);
+
+    if (end <= start) {
+      return; // nothing to yield
+    }
+
+    // TODO: this could be very efficient but now we just scan and find the range.
+
+    const startGroup = this.groupIndex(start);
+    const endGroup = this.groupIndex(end - 1);
+    if (startGroup === -1 || endGroup === -1) {
+      throw new Error(`invalid group data`);
+    }
+
+    let hasPrefix = false;
+
+    for (let g = startGroup; g <= endGroup; ++g) {
+      const gen = this.load(columnNo, g);
+      for await (const part of gen) {
+        if (!hasPrefix) {
+          if (part.start > start) {
+            continue;
+          }
+          hasPrefix = true;
+        }
+
+        if (part.start >= end) {
+          return;
+        }
+
+        yield part;
+      }
+    }
+  }
+
   info() {
     const columns = this.metadata.columns.map((x): ColumnInfo => {
       const raw = x.schema.raw;
@@ -194,7 +239,7 @@ export class ParquetReaderImpl implements ParquetReader {
 
     const groups = this.metadata.groups.map(({ start, end }) => ({ start, end }));
 
-    return { columns, groups };
+    return { columns, groups, rows: this.metadata.rows };
   }
 
   async internalRead(desc: ReadDesc) {
@@ -214,10 +259,9 @@ export class ParquetReaderImpl implements ParquetReader {
 
       case pq.PageType.DATA_PAGE_V2:
         return processTypeDataPageV2(desc.header, column.schema, buf);
-
-      default:
-        throw new Error(`Unsupported page type: ${desc.header.type}`);
     }
+
+    throw new Error(`Unsupported page type: ${desc.header.type}`);
   }
 
   async readAt(at: number): Promise<Data> {
@@ -229,7 +273,7 @@ export class ParquetReaderImpl implements ParquetReader {
     return this.internalRead(desc);
   }
 
-  async lookupAt(at: number): Promise<ArrayLike<number>> {
+  async lookupAt(at: number): Promise<UintArray> {
     const desc = this.refs.get(at);
     if (desc === undefined || !desc.lookup) {
       // can't read lookup data

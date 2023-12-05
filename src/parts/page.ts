@@ -91,7 +91,7 @@ export function isDictLookup(header: pq.PageHeader): boolean {
 const isRLE = (enc: pq.Encoding) => enc === pq.Encoding.RLE || enc == pq.Encoding.BIT_PACKED;
 
 /**
- * Processes a {@link PageType.DATA_PAGE}.
+ * Processes a {@link pq.PageType.DATA_PAGE}.
  */
 export function processTypeDataPage(
   header: pq.PageHeader,
@@ -150,7 +150,7 @@ export function processTypeDataPage(
 }
 
 /**
- * Processes a {@link PageType.DATA_PAGE_V2}.
+ * Processes a {@link pq.PageType.DATA_PAGE_V2}.
  */
 export function processTypeDataPageV2(
   header: pq.PageHeader,

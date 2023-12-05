@@ -1,13 +1,17 @@
-import test from 'node:test';
+import test, { afterEach } from 'node:test';
 import * as assert from 'node:assert';
-import { flattenAsyncIterator, readerForData } from './helper.js';
+import { cleanupHandles, flattenAsyncIterator, readerForData } from './helper.js';
 import { iterateLengthByteArray } from '../src/length-array.js';
-import { ParquetIndexer } from '../src/indexer.js';
-import { ConvertedType, Type } from '../dep/thrift/parquet-code.js';
+import { Type } from '../dep/thrift/parquet-code.js';
 import { ColumnInfo } from '../types.js';
 import { buildReader } from '../src/read.js';
+import { flatRead } from '../src/flat.js';
 
 const dec = new TextDecoder();
+
+afterEach(async () => {
+  await cleanupHandles();
+});
 
 test('columns', async () => {
   const pr = await buildReader(readerForData('userdata1.parquet'));
@@ -100,10 +104,18 @@ test('newread', async () => {
   const out = await flattenAsyncIterator(pr.load(0, 0));
 
   const dict = await pr.readAt(out[0].at);
-  console.info('got newread out dict', dict);
-
   const lookup = await pr.lookupAt(out[0].lookup);
-  console.info('got newread out lookup', lookup);
+});
+
+test('range', async () => {
+  const pr = await buildReader(readerForData('userdata1.parquet'));
+  console.info('info', pr.info());
+
+  const l = pr.info().columns.length;
+  for (let i = 0; i < l; ++i) {
+    const r = await flattenAsyncIterator(pr.loadRange(0, 500, 500_000));
+    console.info('got r for col', {col: i }, r);
+  }
 });
 
 test('duration', async () => {
@@ -111,10 +123,7 @@ test('duration', async () => {
   const out = await flattenAsyncIterator(pr.load(0, 0));
 
   const dict = await pr.readAt(out[0].at);
-  console.info('got duration out dict', dict);
-
   const lookup = await pr.lookupAt(out[0].lookup);
-  console.info('got duration out lookup', lookup);
 });
 
 test('read', async () => {
@@ -145,14 +154,11 @@ test('read', async () => {
   assert.strictEqual(dec.decode(dict8values[lookup8[5]]), 'Indonesia');
 });
 
-// test('indexer', async () => {
-//   const pr = await buildReader(readerForData('userdata1.parquet'));
-//    const i = new ParquetIndexer(pr, 0);
+test('flat', async () => {
+  const pr = await buildReader(readerForData('userdata1.parquet'));
+  const data = await flatRead(pr, 0, 0, 100);
 
-//   const out = await i.findRange({ start: 0, end: 1 });
+  assert.strictEqual(data.bitLength, 96);
+  assert.strictEqual(data.raw?.length, 12_000);
+});
 
-//   assert.strictEqual(out.start, 0);
-//   assert.strictEqual(out.end, 1_000);
-//   assert.strictEqual(out.data.length, 1);
-//   assert.strictEqual(out.data[0].dict, false);
-// });
