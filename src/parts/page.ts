@@ -3,7 +3,7 @@ import type { SchemaLeafNode } from './schema.js';
 import { typedArrayView } from '../view.js';
 import { yieldDataRLE } from './process-rle.js';
 import { processData } from './process.js';
-import type { ColumnData, Reader } from '../../types.js';
+import type { Data, Reader } from '../../types.js';
 import { CompactProtocolReaderPoll, CompactProtocolReaderPoll_OutOfData } from 'thrift-tools';
 
 const POLL_BY2_START = 6;
@@ -97,7 +97,7 @@ export function processTypeDataPage(
   header: pq.PageHeader,
   schema: SchemaLeafNode,
   data: Uint8Array,
-): ColumnData {
+): Data {
   const dpHeader = header.data_page_header!;
   const valueCount = dpHeader.num_values;
 
@@ -156,7 +156,7 @@ export function processTypeDataPageV2(
   header: pq.PageHeader,
   schema: SchemaLeafNode,
   data: Uint8Array,
-): ColumnData {
+): Data {
   throw new Error('TODO: V2');
 }
 

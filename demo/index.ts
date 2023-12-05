@@ -1,16 +1,6 @@
-import { ParquetReader } from '../src';
-import type { Reader } from '../types';
-
-async function prepareReader(r: Reader) {
-  const reader = new ParquetReader(r);
-  console.time('init');
-  try {
-    await reader.init();
-  } finally {
-    console.timeEnd('init');
-  }
-  console.info('got reader with', { rows: reader.rows(), cols: reader.columnLength() });
-}
+import { ColumnInfo, GroupInfo, ParquetReader } from '../types';
+import { WorkerRequest, WorkerReply, ParquetInfo } from './worker';
+import { buildRpcClient } from './worker-api';
 
 window.addEventListener('dragover', (e) => e.preventDefault());
 
@@ -22,13 +12,65 @@ window.addEventListener('drop', async (e) => {
   }
   for (let i = 0; i < files.length; ++i) {
     const f = files[i];
-    const reader = prepareReader(readerFromBlob(f));
-    await reader;
+
+    const w = new Worker('./worker.ts', { type: 'module' });
+    const rpc = buildRpcClient<WorkerRequest, WorkerReply>(w);
+
+    const reply = await rpc({
+      type: 'init',
+      blob: f,
+      name: f.name,
+    });
+    console.info('got reply', reply);
   }
 });
 
-const readerFromBlob = (b: Blob): Reader => async (start, end) => {
-  // reading ~50mb takes ~30ms
-  const bytes = await b.slice(start, end).arrayBuffer();
-  return new Uint8Array(bytes);
-};
+export class RemoteParquetReader implements ParquetReader {
+  static async create(w: Worker, f: File) {
+    const rpc = buildRpcClient<WorkerRequest, WorkerReply>(w);
+    const reply = await rpc({
+      type: 'init',
+      blob: f,
+      name: f.name,
+    });
+    if (reply.type !== 'init') {
+      throw new Error(`unexpected RPC reply`);
+    }
+    return new RemoteParquetReader(rpc, reply.info);
+  }
+
+  private constructor(
+    private rpc: (r: WorkerRequest) => Promise<WorkerReply>,
+    private info: ParquetInfo,
+  ) {}
+
+  async dictFor(columnNo: number, groupNo: number): Promise<ReadDictPart | null> {
+    const reply = await this.rpc({ type: 'dict', id: this.info.id, columnNo, groupNo });
+    if (reply.type !== 'dict') {
+      throw new Error(`unexpected RPC reply`);
+    }
+    return {
+      ...reply.r,
+      async read() {
+        return reply.r.data;
+      },
+    };
+  }
+
+  async load(columnNo: number, groupNo: number): AsyncGenerator<ReadColumnPart, void, void> {
+    const reply = await this.rpc({ type: 'load', id: this.info.id, columnNo, groupNo });
+    if (reply.type !== 'dict') {
+      throw new Error(`unexpected RPC reply`);
+    }
+
+    throw new Error('Method not implemented.');
+  }
+
+  columns(): ColumnInfo[] {
+    return this.info.columns;
+  }
+
+  groups(): GroupInfo[] {
+    return this.info.groups;
+  }
+}

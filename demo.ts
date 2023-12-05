@@ -45,7 +45,7 @@ async function demo(p: string) {
     // console.timeEnd('index');
 
     const i = new ParquetIndexer(reader, 0);
-    console.info('source data has rows', reader.rows(), 'groups', reader.groups().length);
+    console.info('source data has groups', reader.groups().length);
 
     console.time('find');
     const arg = { start: 0, end: 200_000 };

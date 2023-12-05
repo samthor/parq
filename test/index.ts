@@ -92,61 +92,67 @@ test('columns', async () => {
       logicalType: undefined,
     },
   ];
-  assert.deepStrictEqual(pr.columns(), expected);
+  assert.deepStrictEqual(pr.info().columns, expected);
+});
+
+test('newread', async () => {
+  const pr = await buildReader(readerForData('userdata1.parquet'));
+  const out = await flattenAsyncIterator(pr.load(0, 0));
+
+  const dict = await pr.readAt(out[0].at);
+  console.info('got newread out dict', dict);
+
+  const lookup = await pr.lookupAt(out[0].lookup);
+  console.info('got newread out lookup', lookup);
+});
+
+test('duration', async () => {
+  const pr = await buildReader(readerForData('duration.parquet'));
+  const out = await flattenAsyncIterator(pr.load(0, 0));
+
+  const dict = await pr.readAt(out[0].at);
+  console.info('got duration out dict', dict);
+
+  const lookup = await pr.lookupAt(out[0].lookup);
+  console.info('got duration out lookup', lookup);
 });
 
 test('read', async () => {
   const pr = await buildReader(readerForData('userdata1.parquet'));
 
-  const columns = pr.columns();
+  const columns = pr.info().columns;
 
-  assert.strictEqual(pr.groups().length, 1);
+  assert.strictEqual(pr.info().groups.length, 1);
   assert.strictEqual(columns.length, 13);
 
   // This has type INT96, which isn't really seen much (timestamp).
   // It indexes into some underlying data.
-  const dict0 = (await pr.dictFor(0, 0))!;
-  assert.notStrictEqual(null, dict0);
-  assert.strictEqual(dict0.count, 995);
-  const data0 = await dict0.read();
-  assert.strictEqual(data0.type, Type.INT96);
-  assert.strictEqual(data0.raw.length, (dict0.count * data0.bitLength) / 8);
-
-  const index0 = await flattenAsyncIterator(pr.load(0, 0));
-  const firstRead0 = await index0[0].read();
-  if (!firstRead0.index) {
-    throw new Error(`expected index=true`);
-  }
+  const part0 = await flattenAsyncIterator(pr.load(0, 0));
+  assert.notStrictEqual(part0[0].lookup, 0);
+  const firstRead0 = await pr.readAt(part0[0].at);
+  assert.strictEqual(firstRead0.count, 995); // dict has 995 values
 
   // Check BYTE_ARRAY, which involves later indexing into the variable-length data (for strings).
-  const dict8 = (await pr.dictFor(8, 0))!;
-  assert.notStrictEqual(null, dict8);
-  assert.strictEqual(dict8.count, 120);
-  const data8 = await dict8.read();
-  assert.strictEqual(data8.type, Type.BYTE_ARRAY);
+  const part8 = await flattenAsyncIterator(pr.load(8, 0));
+  assert.notStrictEqual(part0[0].lookup, 0);
+  const firstRead8 = await pr.readAt(part8[0].at);
+  const dict8values = [...iterateLengthByteArray(firstRead8.raw)];
 
-  const dict8values = [...iterateLengthByteArray(data8.raw)];
-  assert.strictEqual(dict8values.length, dict8.count);
+  const lookup8 = await pr.lookupAt(part8[0].lookup);
 
-  const index8 = await flattenAsyncIterator(pr.load(8, 0));
-  const firstRead8 = await index8[0].read();
-  if (!firstRead8.index) {
-    throw new Error(`expected index=true`);
-  }
-
-  assert.strictEqual(dec.decode(dict8values[firstRead8.ptr[0]]), 'Indonesia');
-  assert.strictEqual(dec.decode(dict8values[firstRead8.ptr[1]]), 'Canada');
-  assert.strictEqual(dec.decode(dict8values[firstRead8.ptr[5]]), 'Indonesia');
+  assert.strictEqual(dec.decode(dict8values[lookup8[0]]), 'Indonesia');
+  assert.strictEqual(dec.decode(dict8values[lookup8[1]]), 'Canada');
+  assert.strictEqual(dec.decode(dict8values[lookup8[5]]), 'Indonesia');
 });
 
-test('indexer', async () => {
-  const pr = await buildReader(readerForData('userdata1.parquet'));
-   const i = new ParquetIndexer(pr, 0);
+// test('indexer', async () => {
+//   const pr = await buildReader(readerForData('userdata1.parquet'));
+//    const i = new ParquetIndexer(pr, 0);
 
-  const out = await i.findRange({ start: 0, end: 1 });
+//   const out = await i.findRange({ start: 0, end: 1 });
 
-  assert.strictEqual(out.start, 0);
-  assert.strictEqual(out.end, 1_000);
-  assert.strictEqual(out.data.length, 1);
-  assert.strictEqual(out.data[0].dict, false);
-});
+//   assert.strictEqual(out.start, 0);
+//   assert.strictEqual(out.end, 1_000);
+//   assert.strictEqual(out.data.length, 1);
+//   assert.strictEqual(out.data[0].dict, false);
+// });

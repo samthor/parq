@@ -14,20 +14,19 @@ const clamp = (value: number, lo: number, hi: number) => Math.min(Math.max(value
  * Indexer for columns of data within a Parquet file.
  */
 export class ParquetIndexer {
-  private r: ParquetReader;
   private index: IndexEntry[];
-  private columnNo: number;
   private listener: (r: ReadPart) => void = () => {};
+  private rows: number;
 
-  constructor(r: ParquetReader, columnNo: number) {
-    this.r = r;
-    this.columnNo = columnNo;
+  constructor(private r: ParquetReader, private columnNo: number) {
+    const groups = this.r.groups();
 
     // These groups are always contiguous (they have a `num_rows` field, not start/end).
-    this.index = this.r.groups().map((g, groupNo) => {
+    this.index = groups.map((g, groupNo) => {
       return { at: g.start, groupNo };
     });
-    this.index.push({ at: this.r.rows() });
+    this.rows = groups.at(-1)?.end ?? 0;
+    this.index.push({ at: this.rows });
   }
 
   /**
@@ -132,9 +131,8 @@ export class ParquetIndexer {
     start: number;
     end: number;
   }): Promise<{ start: number; end: number, part: ReadColumnPart[], ids: number[] }> {
-    const rows = this.r.rows();
-    start = clamp(start, 0, rows);
-    end = clamp(end, start, rows);
+    start = clamp(start, 0, this.rows);
+    end = clamp(end, start, this.rows);
 
     if (end === start) {
       return { start: 0, end: 0, part: [], ids: [] };
