@@ -1,6 +1,8 @@
-import { ColumnInfo, GroupInfo, ParquetReader } from '../types';
-import { WorkerRequest, WorkerReply, ParquetInfo } from './worker';
+import { Data, ParquetInfo, ParquetReader, Part, UintArray } from '../types';
+import { DemoTableElement } from './demo-table';
+import { WorkerRequest, WorkerReply } from './worker';
 import { buildRpcClient } from './worker-api';
+import * as thorish from 'thorish';
 
 window.addEventListener('dragover', (e) => e.preventDefault());
 
@@ -10,18 +12,15 @@ window.addEventListener('drop', async (e) => {
   if (!files) {
     return;
   }
+
   for (let i = 0; i < files.length; ++i) {
     const f = files[i];
 
     const w = new Worker('./worker.ts', { type: 'module' });
-    const rpc = buildRpcClient<WorkerRequest, WorkerReply>(w);
+    const rp = await RemoteParquetReader.create(w, f);
 
-    const reply = await rpc({
-      type: 'init',
-      blob: f,
-      name: f.name,
-    });
-    console.info('got reply', reply);
+    const table = new DemoTableElement(rp);
+    document.body.append(table);
   }
 });
 
@@ -36,41 +35,61 @@ export class RemoteParquetReader implements ParquetReader {
     if (reply.type !== 'init') {
       throw new Error(`unexpected RPC reply`);
     }
-    return new RemoteParquetReader(rpc, reply.info);
+    return new RemoteParquetReader(rpc, reply.id, reply.info);
   }
 
   private constructor(
     private rpc: (r: WorkerRequest) => Promise<WorkerReply>,
-    private info: ParquetInfo,
+    private id: string,
+    private _info: ParquetInfo,
   ) {}
 
-  async dictFor(columnNo: number, groupNo: number): Promise<ReadDictPart | null> {
-    const reply = await this.rpc({ type: 'dict', id: this.info.id, columnNo, groupNo });
-    if (reply.type !== 'dict') {
+  private readAtCache = new thorish.SimpleCache<number, Promise<Data>>(async (at) => {
+    const reply = await this.rpc({ type: 'readAt', id: this.id, at });
+    if (reply.type !== 'readAt') {
       throw new Error(`unexpected RPC reply`);
     }
-    return {
-      ...reply.r,
-      async read() {
-        return reply.r.data;
-      },
-    };
+    return reply.data;
+  });
+
+  private lookupAtCache = new thorish.SimpleCache<number, Promise<UintArray>>(async (at) => {
+    const reply = await this.rpc({ type: 'lookupAt', id: this.id, at });
+    if (reply.type !== 'lookupAt') {
+      throw new Error(`unexpected RPC reply`);
+    }
+    return reply.lookup;
+  });
+
+  info() {
+    return this._info;
   }
 
-  async load(columnNo: number, groupNo: number): AsyncGenerator<ReadColumnPart, void, void> {
-    const reply = await this.rpc({ type: 'load', id: this.info.id, columnNo, groupNo });
-    if (reply.type !== 'dict') {
+  purge(): void {
+    this.readAtCache.clear();
+    this.lookupAtCache.clear();
+  }
+
+  load(columnNo: number, groupNo: number): AsyncGenerator<Part, void, void> {
+    const g = this._info.groups[groupNo];
+    return this.loadRange(columnNo, g.start, g.end);
+  }
+
+  async *loadRange(columnNo: number, start: number, end: number): AsyncGenerator<Part, void, void> {
+    const reply = await this.rpc({ type: 'loadRange', id: this.id, columnNo, start, end });
+    if (reply.type !== 'loadRange') {
       throw new Error(`unexpected RPC reply`);
     }
 
-    throw new Error('Method not implemented.');
+    for (const part of reply.parts) {
+      yield part;
+    }
   }
 
-  columns(): ColumnInfo[] {
-    return this.info.columns;
+  readAt(at: number): Promise<Data> {
+    return this.readAtCache.get(at);
   }
 
-  groups(): GroupInfo[] {
-    return this.info.groups;
+  lookupAt(at: number): Promise<UintArray> {
+    return this.lookupAtCache.get(at);
   }
 }

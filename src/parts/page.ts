@@ -134,9 +134,10 @@ export function processTypeDataPage(
   if (schema.dl) {
     const dv = typedArrayView(data);
     const offset = dv.getUint32(0, true);
+    const dlData = data.subarray(4, 4 + offset);
 
     // This is likely sparse so don't expand into an array, just use a generator.
-    const gen = yieldDataRLE(data.subarray(4), valueCount, getBitWidth(schema.dl));
+    const gen = yieldDataRLE(dlData, valueCount, getBitWidth(schema.dl));
     for (const v of gen) {
       if (v.value !== schema.dl) {
         effectiveValueCount -= v.count;

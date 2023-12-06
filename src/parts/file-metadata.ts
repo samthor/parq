@@ -34,6 +34,10 @@ export function parseFileMetadata(buf: Uint8Array): FileMetadata {
   const s = new pq.FileMetaData();
   s.read(reader); // TODO: for ~48mb metadata, this takes ~500ms - maybe that's fine?
 
+  if (reader.at !== buf.length) {
+    throw new Error(`did not consume all metadata: at=${reader.at} len=${buf.length}`);
+  }
+
   const schemaNode = decodeSchema(s.schema);
   const allColumns: FileMetadata['columns'] = schemaNode.columns.map((schema) => {
     return {
@@ -65,6 +69,11 @@ export function parseFileMetadata(buf: Uint8Array): FileMetadata {
       }
 
       const begin = metadata.dictionary_page_offset ?? metadata.data_page_offset;
+      if (begin < 0) {
+        // This happened a lot when the zigzag decoder was borked.
+        throw new Error(`got -ve begin for page location: ${begin}`);
+      }
+
       let dictionarySize = 0;
       if (metadata.dictionary_page_offset) {
         dictionarySize = metadata.data_page_offset - metadata.dictionary_page_offset;

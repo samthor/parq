@@ -38,6 +38,7 @@ export function buildRpcClient<Request, Reply>(target: {
         reject(new Error('aborted'));
       });
 
+      ch.port2.start();
       ch.port2.addEventListener(
         'message',
         (e) => {

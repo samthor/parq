@@ -1,5 +1,6 @@
 import { buildReader } from '../src';
-import type { ColumnData, ColumnInfo, GroupInfo, ParquetReader, ReadDictPart, Reader } from '../types';
+import { flattenAsyncIterator } from '../src/helper/it';
+import type { Data, ParquetInfo, ParquetReader, Part, Reader, UintArray } from '../types';
 import { RpcHostContext, buildRpcHost } from './worker-api';
 
 export type WorkerRequest =
@@ -9,33 +10,35 @@ export type WorkerRequest =
       name: string;
     }
   | {
-      type: 'dict' | 'load';
+      type: 'readAt' | 'lookupAt';
       id: string;
-      columnNo: number;
-      groupNo: number;
+      at: number;
     }
   | {
-      type: 'read';
+      type: 'loadRange';
       id: string;
-      column: number;
+      columnNo: number;
       start: number;
       end: number;
     };
-
-export type ParquetInfo = {
-  id: string;
-  columns: ColumnInfo[];
-  groups: GroupInfo[];
-};
 
 export type WorkerReply =
   | {
       type: 'init';
       info: ParquetInfo;
+      id: string;
     }
   | {
-      type: 'dict';
-      r: Omit<ReadDictPart, 'read'> & { data: ColumnData },
+      type: 'loadRange';
+      parts: Part[];
+    }
+  | {
+      type: 'readAt';
+      data: Data;
+    }
+  | {
+      type: 'lookupAt';
+      lookup: UintArray;
     };
 
 function readerFromBlob(b: Blob): Reader {
@@ -60,11 +63,8 @@ async function handleMessage(
     readers.set(id, reader);
     return {
       type: 'init',
-      info: {
-        id,
-        columns: reader.columns(),
-        groups: reader.groups(),
-      },
+      info: reader.info(),
+      id,
     };
   }
 
@@ -74,21 +74,23 @@ async function handleMessage(
   }
 
   switch (message.type) {
-    case 'dict': {
-      const out = await reader.dictFor(message.columnNo, message.groupNo);
-      if (!out) {
-        throw new Error(`no dict for c=${message.columnNo} g=${message.groupNo}`);
-      }
-      const data = await out.read();
-
-      return {
-        type: 'dict',
-        r: { ...out, data },
-      };
+    case 'loadRange': {
+      const parts = [
+        ...(await flattenAsyncIterator(
+          reader.loadRange(message.columnNo, message.start, message.end),
+        )),
+      ];
+      return { type: 'loadRange', parts };
     }
+
+    case 'readAt':
+      return { type: 'readAt', data: await reader.readAt(message.at) };
+
+    case 'lookupAt':
+      return { type: 'lookupAt', lookup: await reader.lookupAt(message.at) };
   }
 
-  throw new Error(`unhandled message type: ${message.type}`);
+  throw new Error(`unhandled message type`);
 }
 
 self.addEventListener('message', buildRpcHost(handleMessage));

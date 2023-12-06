@@ -15,16 +15,6 @@ export async function readerForData(filename: string): Promise<Reader> {
   return readerFor(handle);
 }
 
-export async function flattenAsyncIterator<K>(it: AsyncIterable<K>): Promise<K[]> {
-  const out: K[] = [];
-
-  for await (const next of it) {
-    out.push(next);
-  }
-
-  return out;
-}
-
 export async function cleanupHandles() {
   for (const handle of handlesToCleanup) {
     await handle.close();

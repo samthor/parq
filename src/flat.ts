@@ -2,6 +2,97 @@ import { Data, ParquetReader, Part, UintArray } from '../types.ts';
 import * as pq from '../dep/thrift/parquet-code.ts';
 import { iterateLengthByteArray } from './length-array.ts';
 
+function bitLength(t: pq.Type, typeLength: number) {
+  switch (t) {
+    case pq.Type.BOOLEAN:
+      return 1;
+    case pq.Type.INT32:
+    case pq.Type.FLOAT:
+      return 32;
+    case pq.Type.INT64:
+    case pq.Type.DOUBLE:
+      return 64;
+    case pq.Type.INT96:
+      return 96;
+    case pq.Type.FIXED_LEN_BYTE_ARRAY:
+      return typeLength * 8;
+    case pq.Type.BYTE_ARRAY:
+      return 0;
+    default:
+      throw new Error(`bad physicalType: ${t}`);
+  }
+}
+
+export async function* flatIterate(
+  r: ParquetReader,
+  columnNo: number,
+  start: number,
+  end: number,
+): AsyncGenerator<Uint8Array, void, void> {
+  // FIXME: doesn't filter to start/end or even announce it
+
+  const c = r.info().columns.at(columnNo);
+  if (c === undefined) {
+    throw new Error(`bad columnNo`);
+  }
+
+  const size = bitLength(c.physicalType, c.typeLength);
+  const bytesPer = size >> 3;
+
+  const gen = r.loadRange(columnNo, start, end);
+  for await (const part of gen) {
+    const readPromise = r.readAt(part.at);
+
+    if (part.lookup) {
+      const lookup = await r.lookupAt(part.lookup);
+      const read = await readPromise;
+
+      if (c.physicalType === pq.Type.BYTE_ARRAY) {
+        const readIndex = [...iterateLengthByteArray(read.raw)];
+        for (const index of lookup) {
+          if (index >= readIndex.length) {
+            throw new Error(`can't yield past end of data`);
+          }
+          yield readIndex[index];
+        }
+        continue;
+      }
+
+      for (const index of lookup) {
+        if (c.physicalType === pq.Type.BOOLEAN) {
+          throw new Error(`BOOLEAN lookup`);
+        }
+//        console.info('yielding lookup data', { read, lookup, index, bytesPer, size, type: c.physicalType, raw: read.raw });
+        yield read.raw.slice(bytesPer * index, bytesPer * (index + 1));
+      }
+
+      continue;
+    }
+
+    // normal operation
+    const read = await readPromise;
+    if (c.physicalType === pq.Type.BYTE_ARRAY) {
+      yield* iterateLengthByteArray(read.raw);
+      continue;
+    } else if (c.physicalType === pq.Type.BOOLEAN) {
+      const u = new Uint8Array(1);
+
+      for (let i = 0; i < read.count; ++i) {
+        const byte = i >> 3;
+        const off = 1 << i % 8;
+        u[0] = read.raw[byte] & off ? 1 : 0;
+        yield u;
+      }
+      continue;
+    }
+
+    for (let i = 0; i < read.count; ++i) {
+//      console.info('yielding simple data', { i, bytesPer, raw: read.raw });
+      yield read.raw.slice(bytesPer * i, bytesPer * (i + 1));
+    }
+  }
+}
+
 export type FlatRead = {
   start: number;
   end: number;
@@ -28,30 +119,7 @@ export async function flatRead(
     throw new Error(`bad columnNo`);
   }
 
-  let size = 0;
-  switch (c.physicalType) {
-    case pq.Type.BOOLEAN:
-      size = 1;
-      break;
-    case pq.Type.INT32:
-    case pq.Type.FLOAT:
-      size = 32;
-      break;
-    case pq.Type.INT64:
-    case pq.Type.DOUBLE:
-      size = 64;
-      break;
-    case pq.Type.INT96:
-      size = 96;
-      break;
-    case pq.Type.FIXED_LEN_BYTE_ARRAY:
-      size = c.typeLength * 8;
-      break;
-    case pq.Type.BYTE_ARRAY:
-      break;
-    default:
-      throw new Error(`bad physicalType: ${c.physicalType}`);
-  }
+  const size = bitLength(c.physicalType, c.typeLength);
 
   const lookups = new Map<number, Promise<UintArray>>();
   const reads = new Map<number, Promise<Data>>();
@@ -70,9 +138,8 @@ export async function flatRead(
   if (parts.length === 0) {
     if (c.physicalType === pq.Type.BYTE_ARRAY) {
       return { bitLength: size, start, end: start, index: [], raw: undefined };
-    } else {
-      return { bitLength: size, start, end: start, index: undefined, raw: new Uint8Array() };
     }
+    return { bitLength: size, start, end: start, index: undefined, raw: new Uint8Array() };
   }
 
   start = parts[0].start;

@@ -1,11 +1,12 @@
 import test, { afterEach } from 'node:test';
 import * as assert from 'node:assert';
-import { cleanupHandles, flattenAsyncIterator, readerForData } from './helper.js';
+import { cleanupHandles, readerForData } from './helper.js';
 import { iterateLengthByteArray } from '../src/length-array.js';
 import { Type } from '../dep/thrift/parquet-code.js';
 import { ColumnInfo } from '../types.js';
 import { buildReader } from '../src/read.js';
 import { flatRead } from '../src/flat.js';
+import { flattenAsyncIterator } from '../src/helper/it.js';
 
 const dec = new TextDecoder();
 

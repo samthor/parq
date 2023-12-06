@@ -1,3 +1,4 @@
+import { type } from 'os';
 import { decodeVarint32 } from '../varint.js';
 
 const fromRightMask = [
@@ -236,7 +237,7 @@ export function* yieldDataRLE(
 
   let j = 0;
   while (j < totalCount) {
-    const o = decodeVarint32(arr);
+    const o = decodeVarint32(arr, offset);
     const header = o.value;
     offset += o.size;
 
@@ -247,13 +248,13 @@ export function* yieldDataRLE(
       // This is a bit gross (always Int32) but probably not a big deal.
       // Yielded data rarely has this.
       const resultArr = new Int32Array(count8);
-      offset = decodeRunBitpacked_shifter(arr, offset, partCount, typeLength, resultArr, 0);
+      offset = decodeRunBitpacked_u8(arr, offset, partCount, typeLength, resultArr, 0);
 
       // Aggregate same packed bits.
       let i = 0;
       while (i < count8) {
         const value = resultArr[i];
-        let localCount = 0;
+        let localCount = 1;
         ++i;
 
         // It would be possible to read more than we have (because count8 packed).
@@ -270,7 +271,6 @@ export function* yieldDataRLE(
     } else {
       const value = readRunRepeated(arr, offset);
       offset += typeLengthBytes;
-
       yield { value, count: partCount };
 
       j += partCount;
@@ -308,7 +308,7 @@ export function processDataRLE(
     const partCount = header >> 1;
     if (header & 1) {
       const count8 = partCount << 3;
-      offset = decodeRunBitpacked_shifter(arr, offset, partCount, typeLength, resultArr, j);
+      offset = decodeRunBitpacked_u8(arr, offset, partCount, typeLength, resultArr, j);
       j += count8;
     } else {
       const value = readRunRepeated(arr, offset);

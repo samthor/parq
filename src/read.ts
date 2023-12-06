@@ -117,6 +117,11 @@ export class ParquetReaderImpl implements ParquetReader {
       throw new Error(`invalid column/group`);
     }
 
+    // TODO: happens on large files??
+    if (chunk.begin < 0) {
+      throw new Error(`-ve chunk location`);
+    }
+
     let position = group.start;
     let offset = chunk.begin + chunk.dictionarySize;
     while (offset < chunk.end) {
@@ -149,10 +154,8 @@ export class ParquetReaderImpl implements ParquetReader {
         continue;
       }
 
-      offset = dataEnd;
-
       const part: Part = {
-        at: offset,
+        at: dataBegin,
         start: position,
         end: position + count,
         lookup: 0,
@@ -177,6 +180,7 @@ export class ParquetReaderImpl implements ParquetReader {
       yield { ...part };
 
       position += count;
+      offset = dataEnd;
     }
   }
 
@@ -286,7 +290,7 @@ export class ParquetReaderImpl implements ParquetReader {
     const desc = this.refs.get(at);
     if (desc === undefined || desc.lookup) {
       // can't read real data
-      throw new Error(`no data for ${at}, load() first`);
+      throw new Error(`no data for ${at}, load() first (lookup=${desc?.lookup})`);
     }
     return this.cacheRead(desc);
   }

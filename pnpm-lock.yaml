@@ -6,8 +6,8 @@ settings:
 
 dependencies:
   thrift-tools:
-    specifier: ^0.1.5
-    version: 0.1.5
+    specifier: ^0.1.6
+    version: 0.1.6
 
 devDependencies:
   '@types/node':
@@ -544,8 +544,8 @@ packages:
     resolution: {integrity: sha512-vmT2rrtgQ/fHrjp6YUQKhwUinsURceiCSe7BxGfDihVlm81BqpPPTTvDHR3jN8Q3/Pke7kv+yVbRURBNZLknSw==}
     dev: true
 
-  /thrift-tools@0.1.5:
-    resolution: {integrity: sha512-V7UIqPR5xBQsSK0U+VJNIl9cAEhMr1x8wCf7X+TeKGPc9xmkXYlipf/pM68ojO9ugRwDGX7ERtf1RpX3SnGrjw==}
+  /thrift-tools@0.1.6:
+    resolution: {integrity: sha512-xef+j1Koq9adZt7s6njVYEwEw9V8oXwAzYZGMLKkbM9WlE+7wUUiXukBLH7Z9YmiXyg6mHcsQ+dA0qxD05AXww==}
     hasBin: true
     dev: false
 

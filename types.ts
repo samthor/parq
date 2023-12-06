@@ -1,6 +1,11 @@
 import type * as pq from './dep/thrift/parquet-code.ts';
 
+// nb. not actually a type, an enum
+export { Type as PhysicalType } from './dep/thrift/parquet-code.ts';
+
 export type UintArray = Uint8Array | Uint16Array | Uint32Array;
+
+type PhysicalType = pq.Type;
 
 export type ParquetReader = {
   info(): ParquetInfo;
@@ -45,7 +50,7 @@ export type GroupInfo = {
 export type ColumnInfo = {
   name: string;
   typeLength: number;
-  physicalType: pq.Type;
+  physicalType: PhysicalType;
   logicalType?: pq.LogicalType;
 };
 

@@ -34,10 +34,19 @@ export function processData(
       // RLE_DICTIONARY *seems* to purely be a synonym.
       const typeLength = arr[0];
       if (typeLength > 32 || typeLength <= 0) {
-        throw new Error(`Bad PLAIN_DICTIONARY: typeLength=${typeLength}`);
+        throw new Error(`Bad {RLE/PLAIN}_DICTIONARY: typeLength=${typeLength}`);
       }
 
       const out = processDataRLE(arr.subarray(1), count, typeLength);
+
+      const maxValue = (1 << typeLength);
+      for (const v of out.int) {
+        if (v >= maxValue) {
+          throw new Error(`bad value ${v} > ${maxValue} (typeLength=${typeLength})`);
+        }
+      }
+
+
       return { raw: toUint8Array(out.int), count };
     }
 
