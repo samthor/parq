@@ -44,6 +44,7 @@ type ReadDesc = {
   part?: Part;
   at: number;
   lookup: boolean;
+  cache?: Promise<Data>;
 };
 
 export class ParquetReaderImpl implements ParquetReader {
@@ -242,7 +243,7 @@ export class ParquetReaderImpl implements ParquetReader {
     return { columns, groups, rows: this.metadata.rows };
   }
 
-  async internalRead(desc: ReadDesc) {
+  async internalRead(desc: ReadDesc): Promise<Data> {
     const column = this.metadata.columns[desc.columnNo];
     const chunk = column.chunks[desc.groupNo];
 
@@ -264,13 +265,30 @@ export class ParquetReaderImpl implements ParquetReader {
     throw new Error(`Unsupported page type: ${desc.header.type}`);
   }
 
+  cacheRead(desc: ReadDesc): Promise<Data> {
+    if (desc.cache) {
+      return desc.cache.then((d) => {
+        // This checks for detached/transfered data, if the length is now zero.
+        // TODO: could use `.detached` but it's VERY NEW (Dec-2023)
+        if (d.count !== 0 && d.raw.length === 0) {
+          desc.cache = undefined;
+          return this.cacheRead(desc);
+        }
+        return d;
+      });
+    }
+    const c = this.internalRead(desc);
+    desc.cache = c;
+    return c;
+  }
+
   async readAt(at: number): Promise<Data> {
     const desc = this.refs.get(at);
     if (desc === undefined || desc.lookup) {
       // can't read real data
       throw new Error(`no data for ${at}, load() first`);
     }
-    return this.internalRead(desc);
+    return this.cacheRead(desc);
   }
 
   async lookupAt(at: number): Promise<UintArray> {
@@ -279,7 +297,7 @@ export class ParquetReaderImpl implements ParquetReader {
       // can't read lookup data
       throw new Error(`no lookup data for ${at}, load() first (lookup=${desc?.lookup})`);
     }
-    const data = await this.internalRead(desc);
+    const data = await this.cacheRead(desc);
 
     // shouldn't get rem, just in case
     const rem = data.raw.length % data.count;
@@ -294,5 +312,12 @@ export class ParquetReaderImpl implements ParquetReader {
         return toUint32Array(data.raw);
     }
     throw new Error(`invalid bytesPer for index: ${bytesPer}`);
+  }
+
+  purge() {
+    // this just clears the large(?) buffers we might be holding
+    for (const o of this.refs.values()) {
+      o.cache = undefined;
+    }
   }
 }

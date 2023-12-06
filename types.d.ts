@@ -6,6 +6,11 @@ export type ParquetReader = {
   info(): ParquetInfo;
 
   /**
+   * Purge any caches used by this reader.
+   */
+  purge(): void;
+
+  /**
    * Loads a specific column/group. This itself may internally have many parts.
    */
   load(columnNo: number, groupNo: number): AsyncGenerator<Part, void, void>;

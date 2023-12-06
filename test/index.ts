@@ -162,3 +162,24 @@ test('flat', async () => {
   assert.strictEqual(data.raw?.length, 12_000);
 });
 
+test('transfer', async () => {
+  const pr = await buildReader(readerForData('userdata1.parquet'));
+  const r = await flattenAsyncIterator(pr.loadRange(0, 0, 1));
+  const part = r[0];
+
+  const read1 = await pr.readAt(part.at);
+  const read2 = await pr.readAt(part.at);
+  assert.strictEqual(read1.raw, read2.raw);
+
+  // transfer it into the void
+  const ch = new MessageChannel();
+  ch.port1.postMessage({ raw: read1.raw }, [read1.raw.buffer]);
+  assert.strictEqual(read1.raw.length, 0);
+
+  const read3 = await pr.readAt(part.at);
+  assert.notStrictEqual(read1.raw, read3.raw);
+
+  pr.purge();
+  const read4 = await pr.readAt(part.at);
+  assert.notStrictEqual(read3.raw, read4.raw);
+});
