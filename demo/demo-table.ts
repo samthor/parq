@@ -1,17 +1,54 @@
 import { LogicalType } from '../dep/thrift/parquet-code';
 import { flatIterate } from '../src/flat';
-import { flattenAsyncIterator } from '../src/helper/it';
 import { typedArrayView } from '../src/view';
 import { ParquetReader, PhysicalType } from '../types';
+import * as thorish from 'thorish';
 
 export class DemoTableElement extends HTMLElement {
   private root: ShadowRoot;
   private tbody: HTMLTableSectionElement;
+  private theadRow: HTMLTableRowElement;
+  private target = { start: 0, end: 0 };
+
+  private wq: thorish.TaskType<undefined>;
+
+  public readonly signal: AbortSignal;
 
   constructor(private pq: ParquetReader) {
     super();
 
     this.root = this.attachShadow({ mode: 'open' });
+
+    this.root.innerHTML = `
+<fieldset>
+  <label>
+    <span>Start</span>
+    <input type="number" min="0" value="0" />
+  </label>
+  <label>
+    <span>Rows</span>
+    <select>
+      <option>10</option>
+      <option selected>100</option>
+      <option>500</option>
+    </select>
+  </label>
+  <label>
+    Rows=<span id="rows"></span>
+    <button>Close</button>
+  </label>
+</fieldset>
+    `;
+
+    const c = new AbortController();
+    this.signal = c.signal;
+
+    const fieldset = this.root.querySelector('fieldset')!;
+    const startInput = fieldset.querySelector('input[type="number"]') as HTMLInputElement;
+    const rowsInput = fieldset.querySelector('select')!;
+
+    this.root.querySelector('#rows')!.textContent = String(pq.info().rows);
+    this.root.querySelector('button')!.addEventListener('click', () => c.abort());
 
     const table = document.createElement('table');
 
@@ -22,29 +59,43 @@ export class DemoTableElement extends HTMLElement {
     const theadRow = document.createElement('tr');
     thead.append(theadRow);
 
-    theadRow.append(
+    this.theadRow = theadRow;
+    this.tbody = tbody;
+
+    this.root.append(table);
+
+    this.renderHeader();
+
+    this.wq = thorish.workTask<undefined>(async () => {
+      await this.internalUpdate();
+    });
+    fieldset.addEventListener('change', () => {
+      const start = startInput.valueAsNumber;
+      this.target = { start, end: start + +rowsInput.value };
+      this.wq.queue(undefined);
+    });
+    fieldset.dispatchEvent(new CustomEvent('change'));
+  }
+
+  private renderHeader() {
+    this.theadRow.append(
+      document.createElement('th'),
       ...this.pq.info().columns.map((col) => {
         const el = document.createElement('th');
         el.textContent = col.name;
         return el;
       }),
     );
-
-    this.root.textContent = '';
-    this.root.append(table);
-
-    this.tbody = tbody;
-
-    // TODO
-    this.update(0, 100).catch((err) => {
-      console.warn(err);
-    });
   }
 
-  async update(start: number, end: number) {
+  async internalUpdate() {
+    let { start, end } = this.target;
+    start = Math.max(0, start);
+
     this.tbody.textContent = '';
 
     const trBase = document.createElement('tr');
+    trBase.append(document.createElement('th'));
     let i = 0;
     for (const c of this.pq.info().columns) {
       const td = document.createElement('td');
@@ -53,26 +104,31 @@ export class DemoTableElement extends HTMLElement {
       ++i;
     }
 
+    // TODO: reuse all existing rows, cost is mostly layout. This means either:
+    //  - zero overlap, restart
+    //  - add/remove from start
+    //  - add/remove from end
+
     const rows: HTMLTableRowElement[] = [];
     for (let i = start; i < end; ++i) {
       rows.push(trBase.cloneNode(true) as HTMLTableRowElement);
     }
     this.tbody.append(...rows);
 
+    for (let i = 0; i < (end - start); ++i) {
+      rows[i].children[0].textContent = `#${i + start}`;
+    }
+
     const readTasks = this.pq.info().columns.map(async (c, i) => {
       const it = flatIterate(this.pq, i, start, end);
-      let index = 0; // TODO: wrong
+      let index = 0;
       for await (const value of it) {
-        const el = rows[index].children[i];
+        const el = rows[index].children[i + 1];
         el.textContent = String(renderValue(value, c.physicalType, c.logicalType));
         ++index;
-
-        if (index === rows.length) {
-          return;
-        }
       }
     });
-//    await Promise.all(readTasks);
+    await Promise.all(readTasks);
   }
 }
 
@@ -92,7 +148,7 @@ function renderValue(raw: Uint8Array, t: PhysicalType, l?: LogicalType) {
     if (info.unit.MICROS) {
       v /= 1_000;
     } else if (info.unit.NANOS) {
-      v /= (1_000 * 1_000);
+      v /= 1_000 * 1_000;
     }
 
     if (info.isAdjustedToUTC) {
@@ -109,8 +165,10 @@ function renderValue(raw: Uint8Array, t: PhysicalType, l?: LogicalType) {
   }
 
   if (l) {
-    console.info('got unhandled LogicalType', l, 'for', t);
+    console.debug('got unhandled LogicalType', l, 'for', t);
   }
+
+  // TODO: some files don't have logicalType. Assume STRING on their behalf?
 
   switch (t) {
     case PhysicalType.BYTE_ARRAY:

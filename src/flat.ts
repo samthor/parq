@@ -23,15 +23,74 @@ function bitLength(t: pq.Type, typeLength: number) {
   }
 }
 
+/**
+ * Iterate over the range of values for the given column.
+ *
+ * This will only ever yield at most `end` - `start` values.
+ */
 export async function* flatIterate(
   r: ParquetReader,
   columnNo: number,
   start: number,
   end: number,
 ): AsyncGenerator<Uint8Array, void, void> {
-  // FIXME: doesn't filter to start/end or even announce it
+  const gen = r.loadRange(columnNo, start, end);
 
-  const c = r.info().columns.at(columnNo);
+  const res = await gen.next();
+  if (res.done) {
+    return; // nothing to do - bad read
+  }
+
+  if (start < 0) {
+    throw new Error(`can't iterate with -ve start`);
+  }
+
+  const first = res.value;
+  if (start > first.end) {
+    throw new Error(`cannot skip past first`);
+  }
+  const toSkip = start - first.start;
+  let toEmit = end - start;
+
+  const gen2 = flatIterateInternal(r, columnNo);
+
+  for await (const val of gen2(first, toSkip)) {
+    if (toEmit === 0) {
+      return;
+    }
+    yield val;
+    --toEmit;
+  }
+
+  for (;;) {
+    if (toEmit === 0) {
+      return; // check again in case on boundary
+    }
+
+    const next = await gen.next();
+    if (next.done) {
+      return;
+    }
+    const part = next.value;
+
+    const length = part.end - part.start;
+    if (length > toEmit) {
+      yield* gen2(part);
+      toEmit -= length;
+    } else {
+      for await (const val of gen2(part)) {
+        yield val;
+        --toEmit;
+        if (toEmit === 0) {
+          return;
+        }
+      }
+    }
+  }
+}
+
+function flatIterateInternal(r: ParquetReader, columnNo: number) {
+  const c = r.info().columns.at(columnNo)!;
   if (c === undefined) {
     throw new Error(`bad columnNo`);
   }
@@ -39,8 +98,7 @@ export async function* flatIterate(
   const size = bitLength(c.physicalType, c.typeLength);
   const bytesPer = size >> 3;
 
-  const gen = r.loadRange(columnNo, start, end);
-  for await (const part of gen) {
+  async function* gen2(part: Part, skip: number = 0) {
     const readPromise = r.readAt(part.at);
 
     if (part.lookup) {
@@ -49,48 +107,49 @@ export async function* flatIterate(
 
       if (c.physicalType === pq.Type.BYTE_ARRAY) {
         const readIndex = [...iterateLengthByteArray(read.raw)];
-        for (const index of lookup) {
+        for (const index of lookup.subarray(skip)) {
           if (index >= readIndex.length) {
             throw new Error(`can't yield past end of data`);
           }
           yield readIndex[index];
         }
-        continue;
+        return;
       }
 
-      for (const index of lookup) {
+      for (const index of lookup.subarray(skip)) {
         if (c.physicalType === pq.Type.BOOLEAN) {
           throw new Error(`BOOLEAN lookup`);
         }
-//        console.info('yielding lookup data', { read, lookup, index, bytesPer, size, type: c.physicalType, raw: read.raw });
-        yield read.raw.slice(bytesPer * index, bytesPer * (index + 1));
+        //        console.info('yielding lookup data', { read, lookup, index, bytesPer, size, type: c.physicalType, raw: read.raw });
+        yield read.raw.subarray(bytesPer * index, bytesPer * (index + 1));
       }
-
-      continue;
+      return;
     }
 
     // normal operation
     const read = await readPromise;
     if (c.physicalType === pq.Type.BYTE_ARRAY) {
-      yield* iterateLengthByteArray(read.raw);
-      continue;
+      yield* iterateLengthByteArray(read.raw, skip);
+      return;
     } else if (c.physicalType === pq.Type.BOOLEAN) {
       const u = new Uint8Array(1);
 
-      for (let i = 0; i < read.count; ++i) {
+      for (let i = skip; i < read.count; ++i) {
         const byte = i >> 3;
         const off = 1 << i % 8;
         u[0] = read.raw[byte] & off ? 1 : 0;
         yield u;
       }
-      continue;
+      return;
     }
 
-    for (let i = 0; i < read.count; ++i) {
-//      console.info('yielding simple data', { i, bytesPer, raw: read.raw });
-      yield read.raw.slice(bytesPer * i, bytesPer * (i + 1));
+    for (let i = skip; i < read.count; ++i) {
+      //      console.info('yielding simple data', { i, bytesPer, raw: read.raw });
+      yield read.raw.subarray(bytesPer * i, bytesPer * (i + 1));
     }
   }
+
+  return gen2;
 }
 
 export type FlatRead = {
@@ -102,6 +161,9 @@ export type FlatRead = {
 /**
  * flatRead generates highly-usable data from a {@link ParquetReader} by flattening out dictionary
  * data into output arrays.
+ *
+ * Unlike {@link flatIterate} this does _not_ filter to start/end, instead, it returs whole chunks.
+ * You'll often get more data than you wanted.
  *
  * This operates in a special-case for {@link pq.Type.BYTE_ARRAY}, as it's _more work_ to put its
  * data back into its original format. Returns an index of all byte buffers (probably strings).
@@ -212,7 +274,7 @@ export async function flatRead(
 
     for (const indexAt of lookup) {
       const at = indexAt * bytesPer;
-      const lookupValue = read.raw.slice(at, at + bytesPer);
+      const lookupValue = read.raw.subarray(at, at + bytesPer);
       out.set(lookupValue, outAt);
       outAt += bytesPer;
     }

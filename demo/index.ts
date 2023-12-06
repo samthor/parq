@@ -4,6 +4,8 @@ import { WorkerRequest, WorkerReply } from './worker';
 import { buildRpcClient } from './worker-api';
 import * as thorish from 'thorish';
 
+const helpNode = document.querySelector('#help')!;
+
 window.addEventListener('dragover', (e) => e.preventDefault());
 
 window.addEventListener('drop', async (e) => {
@@ -21,6 +23,13 @@ window.addEventListener('drop', async (e) => {
 
     const table = new DemoTableElement(rp);
     document.body.append(table);
+
+    table.signal.addEventListener('abort', () => {
+      table.remove();
+      w.terminate();
+    });
+
+    helpNode.remove();
   }
 });
 
