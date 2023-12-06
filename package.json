@@ -9,6 +9,7 @@
 	"type": "module",
 	"scripts": {
 		"prepublishOnly": "esbuild src/index.ts --bundle --outfile=dist/index.js --format=esm --sourcemap --minify",
+		"build:demo": "vite build",
 		"test": "npx tsx test/"
 	},
 	"exports": {

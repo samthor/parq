@@ -1,8 +1,11 @@
 import { Data, ParquetInfo, ParquetReader, Part, UintArray } from '../types';
 import { DemoTableElement } from './demo-table';
-import { WorkerRequest, WorkerReply } from './worker';
+import type { WorkerRequest, WorkerReply } from './worker';
 import { buildRpcClient } from './worker-api';
 import * as thorish from 'thorish';
+
+// @ts-ignore
+import workerUrl from './worker?worker';
 
 const helpNode = document.querySelector('#help')!;
 
@@ -18,7 +21,7 @@ window.addEventListener('drop', async (e) => {
   for (let i = 0; i < files.length; ++i) {
     const f = files[i];
 
-    const w = new Worker('./worker.ts', { type: 'module' });
+    const w = workerUrl();
     const rp = await RemoteParquetReader.create(w, f);
 
     const table = new DemoTableElement(rp);
