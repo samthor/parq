@@ -38,7 +38,7 @@ function decodeRunBitpacked_shifter(
     if (haveBits >= typeLength) {
       // Drop any excess bits in this byte's value.
       const excessBits = haveBits - typeLength;
-      rightPart &= fromRightMask[excessBits];
+      rightPart &= fromRightMask[excessBits + bitOffset];
 
       // The final part goes on the far left of the current accumulated value.
       value |= rightPart << hadBits;
@@ -248,7 +248,7 @@ export function* yieldDataRLE(
       // This is a bit gross (always Int32) but probably not a big deal.
       // Yielded data rarely has this.
       const resultArr = new Int32Array(count8);
-      offset = decodeRunBitpacked_u8(arr, offset, partCount, typeLength, resultArr, 0);
+      offset = decodeRunBitpacked_shifter(arr, offset, partCount, typeLength, resultArr, 0);
 
       // Aggregate same packed bits.
       let i = 0;
@@ -308,7 +308,7 @@ export function processDataRLE(
     const partCount = header >> 1;
     if (header & 1) {
       const count8 = partCount << 3;
-      offset = decodeRunBitpacked_u8(arr, offset, partCount, typeLength, resultArr, j);
+      offset = decodeRunBitpacked_shifter(arr, offset, partCount, typeLength, resultArr, j);
       j += count8;
     } else {
       const value = readRunRepeated(arr, offset);
