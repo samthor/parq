@@ -39,7 +39,8 @@ export async function pollPageHeader(r: Reader, at: number) {
   }
 
   if (header.compressed_page_size <= 0) {
-    throw new Error(`Could not find valid page while indexing`);
+    // console.warn('got bad header', header, { consumed });
+    throw new Error(`Could not find valid page while indexing (at=${at})`);
   }
 
   return { header, consumed };

@@ -1,4 +1,5 @@
 import * as pq from '../../dep/thrift/parquet-code.js';
+import { convertedToLogical } from './typemap.ts';
 
 export type SchemaNode = {
   nested: true;
@@ -14,6 +15,7 @@ export type SchemaLeafNode = {
   repeated: boolean;
   optional: boolean;
   type: pq.Type;
+  logicalType?: pq.LogicalType;
 
   /**
    * Type length for {@link CompressionCodec.RLE}. Zero by default.
@@ -89,6 +91,7 @@ function internalDecodeSchema(
       // Just used for RLE.
       typeLength: raw.type_length ?? 0,
       raw,
+      logicalType: makeLogicalType(raw),
     };
     columns.push(node);
     return {
@@ -120,4 +123,41 @@ function internalDecodeSchema(
     },
     consumed: remainingIndex,
   };
+}
+
+function makeLogicalType(raw: pq.SchemaElement): pq.LogicalType | undefined {
+  if (raw.logicalType) {
+    return raw.logicalType;
+  }
+
+  // TODO: this is generally not populated, but there is a documented mapping (...for most things)
+  //   https://github.com/apache/parquet-format/blob/master/LogicalTypes.md
+
+  if (raw.converted_type === undefined) {
+    return;
+  }
+
+  const o = convertedToLogical.get(raw.converted_type);
+  if (o !== undefined) {
+    return o;
+  }
+
+  // this is a decimal or quacks like a decimal.
+  if (
+    raw.converted_type === pq.ConvertedType.DECIMAL ||
+    (raw.converted_type === undefined && raw.precision !== undefined)
+  ) {
+    if (raw.precision === undefined) {
+      return undefined; // required for decimal
+    }
+    const lt = new pq.LogicalType();
+    lt.DECIMAL = new pq.DecimalType();
+    lt.DECIMAL.precision = raw.precision;
+    lt.DECIMAL.scale = raw.scale ?? 0;
+    return lt;
+  }
+
+  // TODO: maps and lists! nested structures!
+
+  return undefined;
 }

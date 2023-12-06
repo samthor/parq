@@ -117,11 +117,6 @@ export class ParquetReaderImpl implements ParquetReader {
       throw new Error(`invalid column/group`);
     }
 
-    // TODO: happens on large files??
-    if (chunk.begin < 0) {
-      throw new Error(`-ve chunk location`);
-    }
-
     let position = group.start;
     let offset = chunk.begin + chunk.dictionarySize;
     while (offset < chunk.end) {
@@ -229,16 +224,12 @@ export class ParquetReaderImpl implements ParquetReader {
   }
 
   info() {
-    const columns = this.metadata.columns.map((x): ColumnInfo => {
-      const raw = x.schema.raw;
+    const columns = this.metadata.columns.map(({ schema }): ColumnInfo => {
       return {
-        name: x.schema.name,
-        typeLength: x.schema.typeLength,
-        physicalType: raw.type!,
-
-        // TODO: this is generally not populated, but there is a documented mapping (...for most things)
-        //   https://github.com/apache/parquet-format/blob/master/LogicalTypes.md
-        logicalType: raw.logicalType,
+        name: schema.name,
+        typeLength: schema.typeLength,
+        physicalType: schema.type,
+        logicalType: schema.logicalType,
       };
     });
 

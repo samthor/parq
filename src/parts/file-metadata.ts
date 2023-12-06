@@ -81,7 +81,10 @@ export function parseFileMetadata(buf: Uint8Array): FileMetadata {
 
       // Some files don't properly indicate 'end', so calculate from begin + size.
       let end = rawChunk.file_offset;
-      if (end === begin) {
+      if (end === begin || end === 0) {
+        if (metadata.total_compressed_size <= 0) {
+          throw new Error(`got bad total_compressed_size=${metadata.total_compressed_size}`);
+        }
         end = begin + metadata.total_compressed_size;
       }
 
