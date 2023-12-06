@@ -1,4 +1,3 @@
-import { type } from 'os';
 import { decodeVarint32 } from '../varint.js';
 
 const fromRightMask = [
