@@ -25,6 +25,9 @@ devDependencies:
   vite:
     specifier: ^4.5.1
     version: 4.5.1(@types/node@18.19.2)
+  zstddec:
+    specifier: ^0.1.0
+    version: 0.1.0
 
 packages:
 
@@ -598,4 +601,8 @@ packages:
       rollup: 3.29.4
     optionalDependencies:
       fsevents: 2.3.3
+    dev: true
+
+  /zstddec@0.1.0:
+    resolution: {integrity: sha512-w2NTI8+3l3eeltKAdK8QpiLo/flRAr2p8AGeakfMZOXBxOg9HIu4LVDxBi81sYgVhFhdJjv1OrB5ssI8uFPoLg==}
     dev: true
