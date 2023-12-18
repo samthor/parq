@@ -6,6 +6,7 @@ export type Chunk = {
   begin: number;
   end: number;
   dictionarySize: number;
+  uncompressedSize: number;
   codec: pq.CompressionCodec;
   columnNo: number;
 };
@@ -38,6 +39,10 @@ export function parseFileMetadata(buf: Uint8Array): FileMetadata {
     throw new Error(`did not consume all metadata: at=${reader.at} len=${buf.length}`);
   }
 
+  if (s.encryption_algorithm || s.footer_signing_key_metadata) {
+    throw new Error(`can't parse encrypted Parquet, sorry`);
+  }
+
   const schemaNode = decodeSchema(s.schema);
   const allColumns: FileMetadata['columns'] = schemaNode.columns.map((schema) => {
     return {
@@ -58,8 +63,8 @@ export function parseFileMetadata(buf: Uint8Array): FileMetadata {
 
     const rawColumnChunks = group.columns;
 
-    const columnChunks = allColumns.map((o, i) => {
-      const rawChunk = rawColumnChunks[i];
+    const columnChunks = allColumns.map((o, columnNo) => {
+      const rawChunk = rawColumnChunks[columnNo];
       const metadata = rawChunk.meta_data!;
 
       if (metadata.type !== o.schema.type) {
@@ -88,12 +93,18 @@ export function parseFileMetadata(buf: Uint8Array): FileMetadata {
         end = begin + metadata.total_compressed_size;
       }
 
+      // TODO: this is just a made up number probably
+      let uncompressedSize = metadata.total_uncompressed_size;
+      uncompressedSize -= dictionarySize;
+      uncompressedSize = Math.max(0, uncompressedSize);
+
       const chunk: Chunk = {
         begin,
         end,
         dictionarySize,
         codec: metadata.codec,
-        columnNo: i,
+        uncompressedSize,
+        columnNo,
       };
       o.chunks.push(chunk);
       return chunk;
