@@ -115,7 +115,7 @@ export class DemoTableElement extends HTMLElement {
     }
     this.tbody.append(...rows);
 
-    for (let i = 0; i < (end - start); ++i) {
+    for (let i = 0; i < end - start; ++i) {
       rows[i].children[0].textContent = `#${i + start}`;
     }
 
@@ -162,6 +162,27 @@ function renderValue(raw: Uint8Array, t: PhysicalType, l?: LogicalType) {
   // string
   if (l?.STRING && t === PhysicalType.BYTE_ARRAY) {
     return dec.decode(raw);
+  }
+
+  // integer
+  if (l?.INTEGER) {
+    const integerIsSigned = l?.INTEGER?.isSigned ?? false;
+    if (t === PhysicalType.INT32) {
+      return integerIsSigned ? dv.getInt32(0, true) : dv.getUint32(0, true);
+    } else if (t === PhysicalType.INT64) {
+      if (!integerIsSigned) {
+        console.debug('! unsigned int64')
+      }
+      return dv.getBigInt64(0, true);
+    }
+  }
+
+  if (l?.JSON) {
+    // TODO: string?
+  }
+
+  if (l?.UUID) {
+    // TODO: uuid? (maybe FIXED_LEN_BYTE_ARRAY)
   }
 
   if (l) {
