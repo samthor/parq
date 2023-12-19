@@ -21,12 +21,14 @@ async function prepareZstd(): Promise<DecompressFn> {
 export async function decompress(
   arr: Uint8Array,
   codec: CompressionCodec,
-  uncompressedSize: number,
+  uncompressedSize?: number,
 ): Promise<Uint8Array> {
-
   switch (codec) {
     case CompressionCodec.UNCOMPRESSED:
       return arr;
+
+    case CompressionCodec.SNAPPY:
+      return snappyDecompress(arr);
 
     case CompressionCodec.GZIP: {
       const s = new DecompressionStream('gzip');
@@ -34,9 +36,6 @@ export async function decompress(
       const reader: ReadableStreamDefaultReader<Uint8Array> = s.readable.getReader();
       return streamToBytes(reader);
     }
-  
-    case CompressionCodec.SNAPPY:
-      return snappyDecompress(arr);
 
     case CompressionCodec.ZSTD: {
       if (zstdPromise === undefined) {
@@ -44,12 +43,10 @@ export async function decompress(
       }
       const decompress = await zstdPromise;
 
-      // TODO: sometimes `uncompressedSize` is the wrong size, and zstddec just returns an
-      // empty array - don't pass it through for now
-
-      return decompress(arr);
+      // nb. if uncompressedSize is just plain wrong, then sometimes zstddec will return no bytes (!)
+      return decompress(arr, uncompressedSize);
     }
   }
 
-  throw new Error(`Unsupported codec: ${codec}`)
+  throw new Error(`Unsupported codec: ${codec}`);
 }

@@ -116,7 +116,7 @@ export class ParquetReaderImpl implements ParquetReader {
 
       const count = countForPageHeader(header);
 
-      // Part is directly yielded to the end-user.
+      // Part is directly yielded to the end-user. It includes the start/end of rows it contains.
       const part: Part = {
         at: offset,
         start: position,
@@ -173,6 +173,12 @@ export class ParquetReaderImpl implements ParquetReader {
 
     for (let g = startGroup; g <= endGroup; ++g) {
       const gen = this.load(columnNo, g);
+
+      if (g > startGroup && g < endGroup) {
+        yield* gen;
+        continue;
+      }
+
       // TODO: this just scans for the start/end
       for await (const part of gen) {
         if (!hasPrefix) {
