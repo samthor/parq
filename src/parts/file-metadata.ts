@@ -5,7 +5,6 @@ import { decodeSchema, type SchemaLeafNode } from './schema.js';
 export type Chunk = {
   begin: number;
   end: number;
-  dictionarySize: number;
   uncompressedSize: number;
   codec: pq.CompressionCodec;
   columnNo: number;
@@ -79,11 +78,6 @@ export function parseFileMetadata(buf: Uint8Array): FileMetadata {
         throw new Error(`got -ve begin for page location: ${begin}`);
       }
 
-      let dictionarySize = 0;
-      if (metadata.dictionary_page_offset) {
-        dictionarySize = metadata.data_page_offset - metadata.dictionary_page_offset;
-      }
-
       // Some files don't properly indicate 'end', so calculate from begin + size.
       let end = rawChunk.file_offset;
       if (end === begin || end === 0) {
@@ -95,13 +89,11 @@ export function parseFileMetadata(buf: Uint8Array): FileMetadata {
 
       // TODO: this is just a made up number probably
       let uncompressedSize = metadata.total_uncompressed_size;
-      uncompressedSize -= dictionarySize;
       uncompressedSize = Math.max(0, uncompressedSize);
 
       const chunk: Chunk = {
         begin,
         end,
-        dictionarySize,
         codec: metadata.codec,
         uncompressedSize,
         columnNo,

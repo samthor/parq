@@ -9,12 +9,17 @@ import { CompactProtocolReaderPoll, CompactProtocolReaderPoll_OutOfData } from '
 const POLL_BY2_START = 6;
 const POLL_BY2_END = 12;
 
+export type PageHeaderPollResult = {
+  consumed: number;
+  header: pq.PageHeader;
+};
+
 /**
- * Poll the reader at the given location for a {@link parquet.PageHeader}. Basically we don't know
+ * Poll the reader at the given location for a {@link pq.PageHeader}. Basically we don't know
  * how long it's going to be but it's _likely_ to be pretty small (everything in the wild seems
  * to be <64 bytes).
  */
-export async function pollPageHeader(r: Reader, at: number) {
+export async function pollPageHeader(r: Reader, at: number): Promise<PageHeaderPollResult> {
   let header = new pq.PageHeader();
   let consumed = 0;
 

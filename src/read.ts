@@ -42,9 +42,12 @@ type ReadDesc = {
   groupNo: number;
   header: pq.PageHeader;
   part?: Part;
-  at: number;
   lookup: boolean;
   cache?: Promise<Data>;
+
+  // where the read actually happens (not header)
+  dataBegin: number;
+  dataEnd: number; // ... but can be used to skip this ReadDesc
 };
 
 export class ParquetReaderImpl implements ParquetReader {
@@ -53,60 +56,8 @@ export class ParquetReaderImpl implements ParquetReader {
   private refs = new Map<number, ReadDesc>();
 
   /**
-   * Reads the dictionary part for the given column/group.
-   *
-   * This reads just the header immediately, like {@link #indexColumnGroup}.
-   */
-  async ensureDictFor(columnNo: number, groupNo: number): Promise<boolean> {
-    const column = this.metadata.columns[columnNo];
-    const chunk = column.chunks[groupNo];
-
-    if (this.refs.has(chunk.begin)) {
-      return false;
-    }
-
-    const { header, consumed } = await pollPageHeader(this.r, chunk.begin);
-
-    if (chunk.dictionarySize === 0) {
-      // Check if there was actually a dictionary in the 1st position.
-      if (header.type !== pq.PageType.DICTIONARY_PAGE) {
-        return false;
-      }
-      chunk.dictionarySize = consumed + header.compressed_page_size;
-    }
-
-    const dataBegin = chunk.begin + consumed;
-    const dataEnd = dataBegin + header.compressed_page_size;
-
-    if (dataEnd !== chunk.begin + chunk.dictionarySize) {
-      throw new Error(`Got inconsistent dictionary size`);
-    }
-    if (header.type !== pq.PageType.DICTIONARY_PAGE) {
-      throw new Error(`Got invalid type for dict: ${header.type}`);
-    }
-    const dictionaryHeader = header.dictionary_page_header!;
-    if (
-      dictionaryHeader.encoding !== pq.Encoding.PLAIN_DICTIONARY &&
-      dictionaryHeader.encoding !== pq.Encoding.PLAIN
-    ) {
-      // TODO: Is this always true? This lets us just pass the data back as a buffer.
-      throw new Error(`Unexpected dictionary encoding: ${dictionaryHeader.encoding}`);
-    }
-
-    this.refs.set(chunk.begin, {
-      columnNo,
-      groupNo,
-      header,
-      at: dataBegin,
-      lookup: false,
-    });
-
-    return true;
-  }
-
-  /**
    * Provides a {@link AsyncGenerator} over the pages within this column/group. This doesn't read
-   * the underlying data from the source until `read()` is called.
+   * the underlying data from the source, but lets the caller invoke `readAt` or `lookupAt`.
    */
   async *load(columnNo: number, groupNo: number): AsyncGenerator<Part, void, void> {
     const group = this.metadata.groups[groupNo];
@@ -114,11 +65,12 @@ export class ParquetReaderImpl implements ParquetReader {
     const chunk = column.chunks[groupNo];
 
     if (!group || !column) {
-      throw new Error(`invalid column/group`);
+      throw new Error(`invalid columnNo=${columnNo} groupNo=${groupNo}`);
     }
 
     let position = group.start;
-    let offset = chunk.begin + chunk.dictionarySize;
+    let offset = chunk.begin;
+
     while (offset < chunk.end) {
       const prev = this.refs.get(offset);
       if (prev !== undefined) {
@@ -126,31 +78,47 @@ export class ParquetReaderImpl implements ParquetReader {
           // skips dict-only parts
           yield { ...prev.part };
         }
-        offset += prev.header.compressed_page_size;
+        offset = prev.dataEnd;
         continue;
       }
 
       const { header, consumed } = await pollPageHeader(this.r, offset);
-
-      const count = countForPageHeader(header);
       const dataBegin = offset + consumed;
       const dataEnd = dataBegin + header.compressed_page_size;
 
-      // Some files don't have dictionarySize in the footer, so we have to catch it here.
+      // Detect and read dictionary pages. It should only be the 1st page, because other pages
+      // have no way to reference a "specific" dictionary - it's only the start.
+      // There should only be one, so check that it's at the start.
       if (header.type === pq.PageType.DICTIONARY_PAGE) {
-        if (chunk.dictionarySize) {
-          throw new Error(`Found multiple dictionary pages`);
-        }
         if (offset !== chunk.begin) {
           throw new Error(`Dictionary is not the first part`);
         }
-        chunk.dictionarySize = dataEnd - chunk.begin;
+        const dictionaryHeader = header.dictionary_page_header;
+        if (
+          dictionaryHeader?.encoding !== pq.Encoding.PLAIN_DICTIONARY &&
+          dictionaryHeader?.encoding !== pq.Encoding.PLAIN
+        ) {
+          // TODO: Is this always true? This lets us just pass the data back as a buffer.
+          throw new Error(`Unexpected dictionary encoding: ${dictionaryHeader?.encoding}`);
+        }
+
+        this.refs.set(offset, {
+          columnNo,
+          groupNo,
+          header,
+          dataBegin,
+          dataEnd,
+          lookup: false,
+        });
         offset = dataEnd;
         continue;
       }
 
+      const count = countForPageHeader(header);
+
+      // Part is directly yielded to the end-user.
       const part: Part = {
-        at: dataBegin,
+        at: offset,
         start: position,
         end: position + count,
         lookup: 0,
@@ -158,17 +126,16 @@ export class ParquetReaderImpl implements ParquetReader {
       let lookup = false;
 
       if (isDictLookup(header)) {
-        // Ensure that we're valid.
-        await this.ensureDictFor(columnNo, groupNo);
-        part.lookup = dataBegin;
-        part.at = chunk.begin;
+        part.lookup = offset; // lookup data is _here_
+        part.at = chunk.begin; // "normal" is dict, which is at the 1st chunk
         lookup = true;
       }
-      this.refs.set(dataBegin, {
+      this.refs.set(offset, {
         groupNo,
         columnNo,
         header,
-        at: dataBegin,
+        dataBegin,
+        dataEnd,
         part,
         lookup,
       });
@@ -206,6 +173,7 @@ export class ParquetReaderImpl implements ParquetReader {
 
     for (let g = startGroup; g <= endGroup; ++g) {
       const gen = this.load(columnNo, g);
+      // TODO: this just scans for the start/end
       for await (const part of gen) {
         if (!hasPrefix) {
           if (part.start > start) {
@@ -242,9 +210,13 @@ export class ParquetReaderImpl implements ParquetReader {
     const column = this.metadata.columns[desc.columnNo];
     const chunk = column.chunks[desc.groupNo];
 
-    const end = desc.at + desc.header.compressed_page_size;
-    const compressed = await this.r(desc.at, end);
-    const buf = await decompress(compressed, chunk.codec);
+    const compressed = await this.r(desc.dataBegin, desc.dataEnd);
+
+    const buf = await decompress(compressed, chunk.codec, chunk.uncompressedSize);
+    if (buf.length === 0 && compressed.length !== 0) {
+      // zstddec can sometimes return nothing?
+      throw new Error(`got zero decompress srcLength=${compressed.length} codec=${chunk.codec}`);
+    }
 
     switch (desc.header.type) {
       case pq.PageType.DICTIONARY_PAGE:
