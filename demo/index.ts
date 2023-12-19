@@ -1,4 +1,4 @@
-import { Data, ParquetInfo, ParquetReader, Part, UintArray } from '../types';
+import type { Data, ParquetInfo, ParquetReader, Part, UintArray } from '../types';
 import { DemoTableElement } from './demo-table';
 import type { WorkerRequest, WorkerReply } from './worker';
 import { buildRpcClient } from './worker-api';

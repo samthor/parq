@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "ptool-d7004"
+  },
+  "targets": {
+    "ptool-d7004": {
+      "hosting": {
+        "parqdemo": [
+          "parqdemo"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

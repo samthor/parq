@@ -1,0 +1,11 @@
+{
+  "hosting": {
+    "target": "parqdemo",
+    "public": "dist",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}

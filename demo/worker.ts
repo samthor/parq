@@ -1,7 +1,7 @@
 import { buildReader } from '../src';
 import { flattenAsyncIterator } from '../src/helper/it';
 import type { Data, ParquetInfo, ParquetReader, Part, Reader, UintArray } from '../types';
-import { RpcHostContext, buildRpcHost } from './worker-api';
+import { type RpcHostContext, buildRpcHost } from './worker-api';
 
 export type WorkerRequest =
   | {

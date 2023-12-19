@@ -10,6 +10,14 @@ export default defineConfig({
         demo: path.resolve(__dirname, 'demo/index.html'),
         worker: path.resolve(__dirname, 'demo/worker.ts'),
       },
+      output: {
+        format: 'esm',
+      },
+      external: ['zstddec'],
     },
+  },
+  publicDir: 'demo-static',
+  worker: {
+    format: 'es',
   },
 })

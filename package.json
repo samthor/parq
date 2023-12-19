@@ -5,12 +5,14 @@
 		"thorish": "^1.1.8",
 		"tsx": "^4.6.2",
 		"vite": "^4.5.1",
+		"thrift-tools": "^0.1.6",
 		"zstddec": "^0.1.0"
 	},
 	"type": "module",
 	"scripts": {
-		"prepublishOnly": "esbuild src/index.ts --bundle --outfile=dist/index.js --format=esm --sourcemap --minify",
-		"build:demo": "vite build",
+		"prepublishOnly": "esbuild src/index.ts --bundle --outfile=dist/index.js --format=esm --sourcemap --minify --external:zstddec",
+		"build:demo": "vite build --emptyOutDir",
+		"build": "pnpm run prepublishOnly",
 		"test": "npx tsx test/"
 	},
 	"exports": {
@@ -20,7 +22,5 @@
 		}
 	},
 	"name": "parq",
-	"dependencies": {
-		"thrift-tools": "^0.1.6"
-	}
+	"version": "0.1.0"
 }
