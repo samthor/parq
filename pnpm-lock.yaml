@@ -4,11 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-dependencies:
-  thrift-tools:
-    specifier: ^0.1.6
-    version: 0.1.6
-
 devDependencies:
   '@types/node':
     specifier: ^18.19.2
@@ -19,9 +14,15 @@ devDependencies:
   thorish:
     specifier: ^1.1.8
     version: 1.1.8
+  thrift-tools:
+    specifier: ^0.1.6
+    version: 0.1.6
   tsx:
     specifier: ^4.6.2
     version: 4.6.2
+  typescript:
+    specifier: ^5.3.3
+    version: 5.3.3
   vite:
     specifier: ^4.5.1
     version: 4.5.1(@types/node@18.19.2)
@@ -550,7 +551,7 @@ packages:
   /thrift-tools@0.1.6:
     resolution: {integrity: sha512-xef+j1Koq9adZt7s6njVYEwEw9V8oXwAzYZGMLKkbM9WlE+7wUUiXukBLH7Z9YmiXyg6mHcsQ+dA0qxD05AXww==}
     hasBin: true
-    dev: false
+    dev: true
 
   /tsx@4.6.2:
     resolution: {integrity: sha512-QPpBdJo+ZDtqZgAnq86iY/PD2KYCUPSUGIunHdGwyII99GKH+f3z3FZ8XNFLSGQIA4I365ui8wnQpl8OKLqcsg==}
@@ -561,6 +562,12 @@ packages:
       get-tsconfig: 4.7.2
     optionalDependencies:
       fsevents: 2.3.3
+    dev: true
+
+  /typescript@5.3.3:
+    resolution: {integrity: sha512-pXWcraxM0uxAS+tN0AG/BF2TyqmHO014Z070UsJ+pFvYuRSq8KH8DmWpnbXe0pEPDHXZV3FcAbJkijJ5oNEnWw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
     dev: true
 
   /undici-types@5.26.5:

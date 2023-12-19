@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "checkJs": true,
-    "noEmit": true,
+//    "noEmit": true,
+    "declaration": true,
 
     // if you'd like to warn if you're using modern features, change these
     // both to e.g., "es2017"
@@ -20,6 +21,7 @@
     // include the JS files you'd like to check here
     "src/**/*.js",
     "src/**/*.ts",
+    "dep/**/*.ts",
     "*.js",
   ],
 }

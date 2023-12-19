@@ -3,16 +3,18 @@
 		"@types/node": "^18.19.2",
 		"esbuild": "^0.17.19",
 		"thorish": "^1.1.8",
-		"tsx": "^4.6.2",
-		"vite": "^4.5.1",
 		"thrift-tools": "^0.1.6",
+		"tsx": "^4.6.2",
+		"typescript": "^5.3.3",
+		"vite": "^4.5.1",
 		"zstddec": "^0.1.0"
 	},
 	"type": "module",
 	"scripts": {
-		"prepublishOnly": "esbuild src/index.ts --bundle --outfile=dist/index.js --format=esm --sourcemap --minify --external:zstddec",
+		"prepublishOnly": "pnpm run prepublishOnly && pnpm run build:types",
 		"build:demo": "vite build --emptyOutDir",
-		"build": "pnpm run prepublishOnly",
+		"build:types": "tsc --emitDeclarationOnly -d --outDir dist/types --target esnext",
+		"build": "esbuild src/index.ts --bundle --outfile=dist/index.js --format=esm --sourcemap --minify --external:zstddec",
 		"test": "npx tsx test/"
 	},
 	"exports": {
