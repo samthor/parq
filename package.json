@@ -11,7 +11,7 @@
 	},
 	"type": "module",
 	"scripts": {
-		"prepublishOnly": "pnpm run prepublishOnly && pnpm run build:types",
+		"prepublishOnly": "rm -rf dist; pnpm run build && pnpm run build:types",
 		"build:demo": "vite build --emptyOutDir",
 		"build:types": "tsc --emitDeclarationOnly -d --outDir dist/types --target esnext",
 		"build": "esbuild src/index.ts --bundle --outfile=dist/index.js --format=esm --sourcemap --minify --external:zstddec",
@@ -20,9 +20,10 @@
 	"exports": {
 		".": {
 			"default": "./dist/index.js",
-			"types": "./index.d.ts"
+			"types": "./dist/types/src/index.d.ts"
 		}
 	},
+	"types": "./dist/types/src/index.d.ts",
 	"name": "parq",
 	"version": "0.1.0"
 }

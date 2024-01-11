@@ -4,7 +4,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   root: path.join(__dirname, 'demo'),
   build: {
-    outDir: path.resolve(__dirname, 'dist/'),
+    outDir: path.resolve(__dirname, 'dist-demo/'),
     rollupOptions: {
       input: {
         demo: path.resolve(__dirname, 'demo/index.html'),
@@ -16,7 +16,7 @@ export default defineConfig({
       external: ['zstddec'],
     },
   },
-  publicDir: 'demo-static',
+  // publicDir: 'demo-static',
   worker: {
     format: 'es',
   },

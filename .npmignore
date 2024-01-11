@@ -1,0 +1,7 @@
+.vscode/
+demo/
+dep/
+src/
+test/
+.prettierrc.json5
+*.ts
