@@ -3,6 +3,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   root: path.join(__dirname, 'demo'),
+  base: './',
   build: {
     outDir: path.resolve(__dirname, 'dist-demo/'),
     rollupOptions: {
