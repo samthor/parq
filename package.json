@@ -25,5 +25,5 @@
 	},
 	"types": "./dist/types/src/index.d.ts",
 	"name": "parq",
-	"version": "0.1.0"
+	"version": "0.1.1"
 }
