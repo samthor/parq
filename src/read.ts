@@ -11,8 +11,18 @@ import {
   processTypeDataPageV2,
 } from './parts/page.js';
 
-export async function buildReader(r: Reader | Promise<Reader>): Promise<ParquetReader> {
+export async function buildReader(
+  r: Reader | Promise<Reader> | Uint8Array | Promise<Uint8Array>,
+): Promise<ParquetReader> {
   r = await r;
+
+  // allow passing raw bytes
+  if (r instanceof Uint8Array) {
+    const bytes = r;
+    const reader: Reader = async (start, end): Promise<Uint8Array> => bytes.slice(start, end);
+    r = reader;
+  }
+
   const td = new TextDecoder('utf-8');
 
   const headerPromise = r(0, 4);

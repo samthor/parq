@@ -1,3 +1,5 @@
+import { Reader } from "../index.ts";
+
 let concatBytes: (chunks: Uint8Array[]) => Uint8Array;
 
 if (typeof Buffer !== 'undefined') {

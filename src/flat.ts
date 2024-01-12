@@ -1,27 +1,6 @@
-import { Data, ParquetReader, Part, UintArray } from '../types.ts';
+import { Data, ParquetReader, Part, UintArray, bitLength } from '../types.ts';
 import * as pq from '../dep/thrift/parquet-code.ts';
 import { iterateLengthByteArray } from './length-array.ts';
-
-function bitLength(t: pq.Type, typeLength: number) {
-  switch (t) {
-    case pq.Type.BOOLEAN:
-      return 1;
-    case pq.Type.INT32:
-    case pq.Type.FLOAT:
-      return 32;
-    case pq.Type.INT64:
-    case pq.Type.DOUBLE:
-      return 64;
-    case pq.Type.INT96:
-      return 96;
-    case pq.Type.FIXED_LEN_BYTE_ARRAY:
-      return typeLength * 8;
-    case pq.Type.BYTE_ARRAY:
-      return 0;
-    default:
-      throw new Error(`bad physicalType: ${t}`);
-  }
-}
 
 /**
  * Iterate over the range of values for the given column.

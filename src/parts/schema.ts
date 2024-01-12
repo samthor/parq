@@ -18,7 +18,7 @@ export type SchemaLeafNode = {
   logicalType?: pq.LogicalType;
 
   /**
-   * Type length for {@link CompressionCodec.RLE}. Zero by default.
+   * Type length for {@link pq.CompressionCodec.RLE}. Zero by default.
    */
   typeLength: number;
 
