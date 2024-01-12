@@ -7,7 +7,32 @@ import * as thorish from 'thorish';
 // @ts-ignore
 import workerUrl from './worker?worker';
 
+// @ts-ignore
+import sampleDataUrl from './data/userdata1.parquet?url';
+
 const helpNode = document.querySelector('#help')!;
+const sampleNode = document.querySelector('#sample')!;
+
+async function addReaderTable(blob: Blob, name: string) {
+  helpNode.remove();
+
+  const w = workerUrl();
+  const pr = await RemoteParquetReader.create(w, blob, 'userdata1.parquet');
+
+  const table = new DemoTableElement(pr);
+  document.body.append(table);
+
+  table.signal.addEventListener('abort', () => {
+    table.remove();
+    w.terminate();
+  });
+}
+
+sampleNode.addEventListener('click', async () => {
+  const r = await fetch(sampleDataUrl);
+  const blob = await r.blob();
+  await addReaderTable(blob, 'userdata1.parquet');
+});
 
 window.addEventListener('dragover', (e) => e.preventDefault());
 
@@ -20,29 +45,17 @@ window.addEventListener('drop', async (e) => {
 
   for (let i = 0; i < files.length; ++i) {
     const f = files[i];
-
-    const w = workerUrl();
-    const rp = await RemoteParquetReader.create(w, f);
-
-    const table = new DemoTableElement(rp);
-    document.body.append(table);
-
-    table.signal.addEventListener('abort', () => {
-      table.remove();
-      w.terminate();
-    });
-
-    helpNode.remove();
+    await addReaderTable(f, f.name);
   }
 });
 
 export class RemoteParquetReader implements ParquetReader {
-  static async create(w: Worker, f: File) {
+  static async create(w: Worker, blob: Blob, name: string) {
     const rpc = buildRpcClient<WorkerRequest, WorkerReply>(w);
     const reply = await rpc({
       type: 'init',
-      blob: f,
-      name: f.name,
+      blob,
+      name,
     });
     if (reply.type !== 'init') {
       throw new Error(`unexpected RPC reply`);

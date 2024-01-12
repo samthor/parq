@@ -5,22 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Parquet Viewer</title>
   <script src="./index.ts" type="module"></script>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&family=Roboto+Mono&display=swap');
-    body {
-      font-family: Segoe UI,system-ui,-apple-system,sans-serif;
-      font-family: Heebo,Segoe UI,system-ui,-apple-system,sans-serif;
-
-      --font-monospace: 'Roboto Mono';
-      font-weight: 400;
-    }
-  </style>
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
 
   <div id="help">
-    Drag and drop a Parquet file on this page.
-    This is a demo of the <a href="https://github.com/samthor/parq">parq</a> Parquet reader library.
+    <h1>parq demo</h1>
+    <p>
+      Drag and drop a Parquet file on this page to view it online.
+      This is a demo of the <a href="https://github.com/samthor/parq">parq</a> Parquet reader library.
+    </p>
+
+    <p>
+      Or click here to load sample data: <button id="sample">Sample Data</button>
+    </p>
   </div>
 
 </body>
