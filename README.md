@@ -23,7 +23,7 @@ for await (const value of it) {
 }
 ```
 
-It's a bit awkward to receive a `Uint8Array` per-value, but it matches how Parquet works: it has a variety of primitive data types _as well as_ the `BYTE_ARRAY` type which has variable length.
+It's a bit awkward to receive a `Uint8Array` per-value (you can use `DataView` to read its contents), but it matches how Parquet works: it has a variety of primitive data types _as well as_ the `BYTE_ARRAY` type which has variable length.
 This type is usually used for UTF-8 encoded strings.
 
 To find out what type is used per-column, check `pr.info().columns` for their name, type, and so on, before indexing.
