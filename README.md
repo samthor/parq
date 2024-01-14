@@ -1,6 +1,6 @@
 
 parq is a Parquet reader in JavaScript.
-Install from NPM via "parq".
+[Install from NPM via "parq"](https://www.npmjs.com/package/parq).
 
 ## Usage
 
